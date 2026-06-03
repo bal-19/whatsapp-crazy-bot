@@ -17,6 +17,7 @@ import {
     emitNewMessage,
 } from "../realtime/socket.js";
 import { logService } from "../services/logService.js";
+import { botConfigService } from "../services/botConfigService.js";
 import { sanitizeInput } from "../ai/input-sanitizer.js";
 import { detectIntent, shouldBotRespond } from "../ai/intent-detector.js";
 import { ERROR_MESSAGES } from "../ai/error-messages.js";
@@ -44,6 +45,9 @@ export class BotManager {
         this.setStatus("connecting");
 
         try {
+            // Initialize bot config from database
+            await botConfigService.initialize();
+
             const { state, saveCreds } = await useMultiFileAuthState(
                 env.WA_AUTH_DIR,
             );
@@ -147,12 +151,17 @@ export class BotManager {
         const messageId = message.key.id;
         if (!jid || !messageId) return;
 
+        // Filter: Ignore newsletter messages
+        if (jid.includes("@newsletter")) {
+            return;
+        }
+
         const text = extractText(message);
         if (!text) {
             return;
         }
 
-        const config = await appDb.getConfig();
+        const config = await botConfigService.getConfig();
         const isGroup = jid.endsWith("@g.us");
         if (!config.is_active || (isGroup && config.ignore_groups)) return;
 

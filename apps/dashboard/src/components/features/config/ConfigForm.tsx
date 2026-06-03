@@ -54,17 +54,12 @@ export function ConfigForm({ draft, isDirty, isSaving, onFieldChange, onSave, on
 
             <div className="space-y-2">
                 <Label htmlFor="tone-style">Tone Style</Label>
-                <select
+                <Input
                     id="tone-style"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    type="text"
                     value={draft.tone_style}
                     onChange={(e) => onFieldChange('tone_style', e.target.value as BotConfig['tone_style'])}
-                >
-                    <option value="pedas">Pedas</option>
-                    <option value="wholesome">Wholesome</option>
-                    <option value="absurd">Absurd</option>
-                    <option value="custom">Custom</option>
-                </select>
+                />
             </div>
 
             <div className="space-y-2">

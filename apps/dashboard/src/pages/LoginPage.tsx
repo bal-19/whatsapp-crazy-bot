@@ -46,7 +46,7 @@ export function LoginPage() {
                             <Input
                                 id="username"
                                 value={username}
-                                onChange={(e) => setUsername(e.target.value)}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
                             />
                         </div>
                         <div className="space-y-2">
@@ -55,7 +55,7 @@ export function LoginPage() {
                                 id="password"
                                 type="password"
                                 value={password}
-                                onChange={(e) => setPassword(e.target.value)}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
                             />
                         </div>
                         <Button className="w-full" type="submit" disabled={isLoading}>

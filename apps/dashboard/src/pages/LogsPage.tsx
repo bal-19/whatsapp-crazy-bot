@@ -29,7 +29,7 @@ export function LogsPage() {
                         <select
                             className="flex h-10 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                             value={level}
-                            onChange={(event) => setLevel(event.target.value)}
+                            onChange={(event: React.ChangeEvent<HTMLSelectElement>) => setLevel(event.target.value)}
                         >
                             <option value="">All</option>
                             <option value="info">Info</option>
@@ -38,7 +38,7 @@ export function LogsPage() {
                         </select>
                         <div className="relative w-64">
                             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input className="pl-9" placeholder="Cari log" value={query} onChange={(e) => setQuery(e.target.value)} />
+                            <Input className="pl-9" placeholder="Cari log" value={query} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)} />
                         </div>
                     </div>
                 </CardHeader>

@@ -23,7 +23,7 @@ export function ConfigForm({ draft, isDirty, isSaving, onFieldChange, onSave, on
                 <Input
                     id="bot-name"
                     value={draft.bot_name}
-                    onChange={(e) => onFieldChange('bot_name', e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => onFieldChange('bot_name', e.target.value)}
                 />
             </div>
 
@@ -58,7 +58,7 @@ export function ConfigForm({ draft, isDirty, isSaving, onFieldChange, onSave, on
                     id="tone-style"
                     type="text"
                     value={draft.tone_style}
-                    onChange={(e) => onFieldChange('tone_style', e.target.value as BotConfig['tone_style'])}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => onFieldChange('tone_style', e.target.value as BotConfig['tone_style'])}
                 />
             </div>
 

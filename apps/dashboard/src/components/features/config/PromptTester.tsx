@@ -33,7 +33,7 @@ export function PromptTester({ reply, isTesting, onTest }: PromptTesterProps) {
             <div className="flex gap-2">
                 <Input
                     value={message}
-                    onChange={(e) => setMessage(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMessage(e.target.value)}
                     placeholder="Ketik pesan test..."
                 />
                 <Button onClick={() => onTest(message)} disabled={isTesting || message.trim().length === 0}>

@@ -32,7 +32,7 @@ export function ConversationList({ conversations, activeContactId, onSelect }: C
             <div className="border-b p-4">
                 <div className="relative">
                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input className="pl-9" placeholder="Cari nama atau nomor" value={query} onChange={(e) => setQuery(e.target.value)} />
+                    <Input className="pl-9" placeholder="Cari nama atau nomor" value={query} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)} />
                 </div>
             </div>
             <div className="min-h-0 flex-1 overflow-auto">

@@ -1,11 +1,21 @@
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "jsx": "react-jsx",
-    "noEmit": true,
-    "paths": {
-      "@whatsapp-bot/shared": ["../../packages/shared/src/index.ts"]
-    }
-  },
-  "include": ["src", "vite.config.ts", "tailwind.config.ts"]
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "jsx": "react-jsx",
+        "noEmit": true,
+        "baseUrl": ".",
+        "paths": {
+            "@/*": [
+                "./src/*"
+            ],
+            "@whatsapp-bot/shared": [
+                "../../packages/shared/src/index.ts"
+            ]
+        }
+    },
+    "include": [
+        "src",
+        "vite.config.ts",
+        "tailwind.config.ts"
+    ]
 }

@@ -363,7 +363,74 @@ export function detectIntent(message: string): Intent {
 }
 ```
 
-### Rule 4: Guardrails (Batasan Bercanda)
+### Rule 4: Mention Detection (Bot Trigger)
+**Bot hanya akan merespons jika namanya disebutkan dalam pesan.**
+
+Ini menghindari bot merespons setiap chat di grup dan membuat percakapan lebih natural.
+
+#### Cara Kerja:
+```typescript
+// Bot akan merespons jika:
+// 1. Nama bot lengkap disebutkan: "Bot Gila, kamu gimana?"
+// 2. Salah satu kata dari nama bot disebutkan: "bot" atau "gila"
+// 3. Command khusus: "/reset", "mulai dari awal", dll
+
+export function shouldBotRespond(message: string, botName: string): boolean {
+  const lower = message.toLowerCase().trim();
+  const botNameLower = botName.toLowerCase().trim();
+  
+  // Split nama bot menjadi kata-kata individual untuk matching lebih fleksibel
+  const botNameWords = botNameLower.split(/\s+/).filter(word => word.length > 2);
+  
+  // Cek apakah ada kata dari nama bot yang disebutkan
+  for (const word of botNameWords) {
+    if (lower.includes(word)) {
+      return true;
+    }
+  }
+  
+  // Cek nama bot lengkap
+  if (lower.includes(botNameLower)) {
+    return true;
+  }
+  
+  // Selalu respons untuk command khusus
+  if (lower.startsWith('/') || lower.includes('mulai dari awal')) {
+    return true;
+  }
+  
+  return false;
+}
+```
+
+#### Contoh Skenario:
+
+**Nama Bot: "Bot Gila"**
+
+| Pesan User | Respons Bot? | Alasan |
+|------------|--------------|--------|
+| "Bot, siapa kamu?" | ✅ Yes | Mengandung kata "bot" |
+| "Gila ya cuaca hari ini, bot?" | ✅ Yes | Mengandung kata "gila" dan "bot" |
+| "Bot Gila, bantuin dong" | ✅ Yes | Nama lengkap disebutkan |
+| "Cuaca hari ini panas banget" | ❌ No | Tidak ada mention nama bot |
+| "/reset" | ✅ Yes | Command khusus (exception) |
+| "bicara dengan manusia" | ✅ Yes | Intent handoff (exception) |
+
+#### Keuntungan:
+- **Lebih natural di grup**: Bot tidak mengganggu percakapan yang bukan ditujukan untuknya
+- **Hemat quota**: Tidak memproses setiap pesan di grup
+- **User control**: User bisa memilih kapan ingin melibatkan bot
+- **Flexibel**: Cukup sebut salah satu kata dari nama bot
+
+#### Konfigurasi:
+Nama bot bisa diubah via dashboard. Semakin unik nama bot, semakin mudah di-mention tanpa false positive.
+
+**Rekomendasi nama bot:**
+- ✅ "Bot Gila", "Asisten AI", "Jarvis", "Friday" (2 kata atau 1 kata unik)
+- ⚠️ "Bot", "AI" (terlalu umum, bisa banyak false positive)
+- ❌ "A", "B" (terlalu pendek, di-filter otomatis jika < 3 karakter)
+
+### Rule 5: Guardrails (Batasan Bercanda)
 Inject ke system prompt untuk prevent harmful content:
 
 ```

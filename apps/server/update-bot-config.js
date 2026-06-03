@@ -1,46 +1,33 @@
 #!/usr/bin/env node
 /**
- * Script untuk update bot configuration di database
- * Mengganti bot_name menjadi "Ikmal" dan tone_style menjadi "helpful"
+ * Script untuk update bot configuration di Supabase.
  */
 
-import Database from "better-sqlite3";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
+import path from "node:path";
+import dotenv from "dotenv";
+import { createClient } from "@supabase/supabase-js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+dotenv.config({ path: path.resolve(process.cwd(), "../../.env") });
 
-const dbPath = join(__dirname, "data", "bot.db");
+const supabaseUrl = process.env.SUPABASE_URL;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-console.log("🔧 Updating bot configuration...");
-console.log(`📂 Database: ${dbPath}`);
+if (!supabaseUrl || !serviceRoleKey) {
+    console.error(
+        "SUPABASE_URL dan SUPABASE_SERVICE_ROLE_KEY wajib diisi sebelum menjalankan script ini.",
+    );
+    process.exit(1);
+}
 
-try {
-    const db = new Database(dbPath);
+const supabase = createClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+    },
+});
 
-    // Update bot_name menjadi "Ikmal"
-    const updateName = db.prepare(`
-    UPDATE bot_config 
-    SET value = ?, updated_at = datetime('now')
-    WHERE key = 'bot_name'
-  `);
-
-    const resultName = updateName.run("Ikmal");
-    console.log(`✅ Updated bot_name: ${resultName.changes} row(s) affected`);
-
-    // Update tone_style menjadi "helpful"
-    const updateTone = db.prepare(`
-    UPDATE bot_config 
-    SET value = ?, updated_at = datetime('now')
-    WHERE key = 'tone_style'
-  `);
-
-    const resultTone = updateTone.run("helpful");
-    console.log(`✅ Updated tone_style: ${resultTone.changes} row(s) affected`);
-
-    // Update system_prompt dengan persona baru
-    const newPersona = `Nama kamu adalah Ikmal, asisten AI yang helpful dengan vibe Gen Z.
+const newPersona = `Nama kamu adalah Ikmal, asisten AI yang helpful dengan vibe Gen Z.
 
 Tentang kamu:
 - Kamu adalah asisten yang siap membantu dengan gaya bahasa santai ala anak muda
@@ -67,32 +54,60 @@ Contoh gaya bahasa:
 - "No cap, itu emang work sih..."
 - "Santuy, aku jelasin step by step ya..."`;
 
-    const updatePersona = db.prepare(`
-    UPDATE bot_config 
-    SET value = ?, updated_at = datetime('now')
-    WHERE key = 'system_prompt'
-  `);
+console.log("Updating bot configuration in Supabase...");
 
-    const resultPersona = updatePersona.run(newPersona);
-    console.log(
-        `✅ Updated system_prompt: ${resultPersona.changes} row(s) affected`,
-    );
+try {
+    const { data: current, error: currentError } = await supabase
+        .from("bot_settings")
+        .select("id")
+        .limit(1)
+        .maybeSingle();
 
-    // Tampilkan config saat ini
-    console.log("\n📋 Current configuration:");
-    const config = db.prepare("SELECT key, value FROM bot_config").all();
-    config.forEach((row) => {
-        if (row.key === "system_prompt") {
-            console.log(`  ${row.key}: [${row.value.length} characters]`);
-        } else {
-            console.log(`  ${row.key}: ${row.value}`);
-        }
-    });
+    if (currentError) throw currentError;
 
-    db.close();
-    console.log("\n✨ Bot configuration updated successfully!");
-    console.log("🚀 Restart your server to apply changes.");
+    if (!current) {
+        const { error: insertError } = await supabase.from("bot_settings").insert({
+            bot_name: "Ikmal",
+            system_prompt: newPersona,
+            is_active: true,
+            ignore_groups: false,
+            tone_style: "helpful",
+        });
+
+        if (insertError) throw insertError;
+    } else {
+        const { error: updateError } = await supabase
+            .from("bot_settings")
+            .update({
+                bot_name: "Ikmal",
+                system_prompt: newPersona,
+                tone_style: "helpful",
+                updated_at: new Date().toISOString(),
+            })
+            .eq("id", current.id);
+
+        if (updateError) throw updateError;
+    }
+
+    const { data: config, error: configError } = await supabase
+        .from("bot_settings")
+        .select("bot_name, system_prompt, is_active, ignore_groups, tone_style, updated_at")
+        .limit(1)
+        .maybeSingle();
+
+    if (configError) throw configError;
+
+    console.log("Current configuration:");
+    console.log(`  bot_name: ${config?.bot_name}`);
+    console.log(`  tone_style: ${config?.tone_style}`);
+    console.log(`  is_active: ${config?.is_active}`);
+    console.log(`  ignore_groups: ${config?.ignore_groups}`);
+    console.log(`  system_prompt: [${config?.system_prompt?.length ?? 0} characters]`);
+    console.log(`  updated_at: ${config?.updated_at}`);
 } catch (error) {
-    console.error("❌ Error updating configuration:", error.message);
+    console.error(
+        "Error updating configuration:",
+        error instanceof Error ? error.message : error,
+    );
     process.exit(1);
 }

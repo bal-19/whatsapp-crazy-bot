@@ -14,8 +14,21 @@ const envSchema = z.object({
   JWT_SECRET: z.string().default('dev_secret_change_me'),
   DASHBOARD_USERNAME: z.string().default('admin'),
   DASHBOARD_PASSWORD: z.string().default('admin123'),
-  DATABASE_PATH: z.string().default('./data/bot.db'),
+  SUPABASE_URL: z.string().url().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+  SUPABASE_DB_SCHEMA: z.string().default('public'),
   WA_AUTH_DIR: z.string().default('./whatsapp-auth')
 });
 
-export const env = envSchema.parse(process.env);
+const parsedEnv = envSchema.parse(process.env);
+
+if (
+  parsedEnv.NODE_ENV !== 'test' &&
+  (!parsedEnv.SUPABASE_URL || !parsedEnv.SUPABASE_SERVICE_ROLE_KEY)
+) {
+  throw new Error(
+    'SUPABASE_URL dan SUPABASE_SERVICE_ROLE_KEY wajib diisi untuk menjalankan server di mode non-test.'
+  );
+}
+
+export const env = parsedEnv;

@@ -1,18 +1,19 @@
-import fs from "node:fs";
-import path from "node:path";
-import Database from "better-sqlite3";
+import crypto from 'node:crypto';
 import type {
-    AnalyticsSummary,
-    BotConfig,
-    ConversationDetail,
-    ConversationSummary,
-    Message,
-    MessageDirection,
-    MessageStatus,
-    PaginatedResponse,
-    SystemLog,
-} from "@whatsapp-bot/shared";
-import { env } from "../config/env.js";
+  AnalyticsSummary,
+  BotConfig,
+  ConversationDetail,
+  ConversationSummary,
+  LogLevel,
+  Message,
+  MessageDirection,
+  MessageStatus,
+  PaginatedResponse,
+  SystemLog,
+  ToneStyle
+} from '@whatsapp-bot/shared';
+import { env } from '../config/env.js';
+import { supabaseAdmin } from '../lib/supabase.js';
 
 const DEFAULT_PERSONA = `Nama kamu adalah Ikmal, asisten AI yang helpful dengan vibe Gen Z.
 
@@ -41,287 +42,735 @@ Contoh gaya bahasa:
 - "No cap, itu emang work sih..."
 - "Santuy, aku jelasin step by step ya..."`;
 
-export class AppDatabase {
-    private db: Database.Database;
+const DEFAULT_CONFIG: BotConfig = {
+  system_prompt: DEFAULT_PERSONA,
+  bot_name: 'Ikmal',
+  is_active: true,
+  ignore_groups: false,
+  tone_style: 'helpful'
+};
 
-    constructor(filename = env.DATABASE_PATH) {
-        const dir = path.dirname(filename);
-        if (dir && dir !== ".") fs.mkdirSync(dir, { recursive: true });
-        this.db = new Database(filename);
-        this.db.pragma("journal_mode = WAL");
-        this.migrate();
-        this.seedDefaults();
-    }
-
-    migrate(): void {
-        this.db.exec(`
-      CREATE TABLE IF NOT EXISTS contacts (
-        id TEXT PRIMARY KEY,
-        name TEXT,
-        is_blocked INTEGER DEFAULT 0,
-        created_at TEXT DEFAULT (datetime('now')),
-        last_seen TEXT
-      );
-
-      CREATE TABLE IF NOT EXISTS messages (
-        id TEXT PRIMARY KEY,
-        contact_id TEXT NOT NULL,
-        direction TEXT CHECK(direction IN ('inbound', 'outbound')),
-        body TEXT NOT NULL,
-        status TEXT DEFAULT 'sent',
-        ai_model TEXT,
-        tokens_used INTEGER,
-        latency_ms INTEGER,
-        created_at TEXT DEFAULT (datetime('now')),
-        FOREIGN KEY (contact_id) REFERENCES contacts(id)
-      );
-
-      CREATE TABLE IF NOT EXISTS bot_config (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL,
-        updated_at TEXT DEFAULT (datetime('now'))
-      );
-
-      CREATE TABLE IF NOT EXISTS system_logs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        level TEXT CHECK(level IN ('info', 'warn', 'error')),
-        message TEXT NOT NULL,
-        meta TEXT,
-        created_at TEXT DEFAULT (datetime('now'))
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_messages_contact_created ON messages(contact_id, created_at);
-      CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at);
-      CREATE INDEX IF NOT EXISTS idx_logs_created ON system_logs(created_at);
-    `);
-    }
-
-    seedDefaults(): void {
-        const defaults: BotConfig = {
-            system_prompt: DEFAULT_PERSONA,
-            bot_name: "Ikmal",
-            is_active: true,
-            ignore_groups: false,
-            tone_style: "helpful",
-        };
-
-        const stmt = this.db.prepare(
-            "INSERT OR IGNORE INTO bot_config (key, value) VALUES (?, ?)",
-        );
-        for (const [key, value] of Object.entries(defaults)) {
-            stmt.run(key, String(value));
-        }
-    }
-
-    getConfig(): BotConfig {
-        const rows = this.db
-            .prepare("SELECT key, value FROM bot_config")
-            .all() as Array<{ key: string; value: string }>;
-        const map = Object.fromEntries(rows.map((row) => [row.key, row.value]));
-
-        return {
-            system_prompt: map.system_prompt ?? DEFAULT_PERSONA,
-            bot_name: map.bot_name ?? "Ikmal",
-            is_active: map.is_active !== "false" && map.is_active !== "0",
-            ignore_groups:
-                map.ignore_groups === "true" || map.ignore_groups === "1",
-            tone_style:
-                (map.tone_style as BotConfig["tone_style"]) ?? "helpful",
-        };
-    }
-
-    updateConfig(patch: Partial<BotConfig>): BotConfig {
-        const stmt = this.db.prepare(`
-      INSERT INTO bot_config (key, value, updated_at)
-      VALUES (?, ?, datetime('now'))
-      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')
-    `);
-
-        for (const [key, value] of Object.entries(patch)) {
-            if (value !== undefined) stmt.run(key, String(value));
-        }
-
-        return this.getConfig();
-    }
-
-    upsertContact(id: string, name?: string | null): void {
-        this.db
-            .prepare(
-                `INSERT INTO contacts (id, name, last_seen)
-         VALUES (?, ?, datetime('now'))
-         ON CONFLICT(id) DO UPDATE SET
-           name = COALESCE(excluded.name, contacts.name),
-           last_seen = datetime('now')`,
-            )
-            .run(id, name ?? null);
-    }
-
-    insertMessage(input: {
-        id: string;
-        contact_id: string;
-        direction: MessageDirection;
-        body: string;
-        status?: MessageStatus;
-        ai_model?: string | null;
-        tokens_used?: number | null;
-        latency_ms?: number | null;
-    }): Message {
-        this.db
-            .prepare(
-                `INSERT OR REPLACE INTO messages
-          (id, contact_id, direction, body, status, ai_model, tokens_used, latency_ms)
-         VALUES (@id, @contact_id, @direction, @body, @status, @ai_model, @tokens_used, @latency_ms)`,
-            )
-            .run({
-                ...input,
-                status: input.status ?? "sent",
-                ai_model: input.ai_model ?? null,
-                tokens_used: input.tokens_used ?? null,
-                latency_ms: input.latency_ms ?? null,
-            });
-
-        return this.db
-            .prepare("SELECT * FROM messages WHERE id = ?")
-            .get(input.id) as Message;
-    }
-
-    listConversations(
-        page = 1,
-        limit = 20,
-    ): PaginatedResponse<ConversationSummary> {
-        const offset = (page - 1) * limit;
-        const total = (
-            this.db.prepare("SELECT COUNT(*) AS count FROM contacts").get() as {
-                count: number;
-            }
-        ).count;
-        const data = this.db
-            .prepare(
-                `SELECT
-          c.id AS contact_id,
-          c.name AS contact_name,
-          m.body AS last_message,
-          m.created_at AS last_message_at,
-          (SELECT COUNT(*) FROM messages WHERE contact_id = c.id) AS message_count,
-          (SELECT ROUND(AVG(latency_ms)) FROM messages WHERE contact_id = c.id AND direction = 'outbound' AND latency_ms IS NOT NULL) AS avg_response_time_ms
-        FROM contacts c
-        JOIN messages m ON m.id = (
-          SELECT id FROM messages WHERE contact_id = c.id ORDER BY datetime(created_at) DESC LIMIT 1
-        )
-        ORDER BY datetime(m.created_at) DESC
-        LIMIT ? OFFSET ?`,
-            )
-            .all(limit, offset) as ConversationSummary[];
-
-        return { data, pagination: { page, limit, total } };
-    }
-
-    getConversation(contactId: string): ConversationDetail | null {
-        const contact = this.db
-            .prepare("SELECT id, name FROM contacts WHERE id = ?")
-            .get(contactId) as { id: string; name: string | null } | undefined;
-        if (!contact) return null;
-
-        const messages = this.db
-            .prepare(
-                "SELECT * FROM messages WHERE contact_id = ? ORDER BY datetime(created_at) ASC",
-            )
-            .all(contactId) as Message[];
-
-        return { contact, messages };
-    }
-
-    clearConversation(contactId: string): void {
-        this.db
-            .prepare("DELETE FROM messages WHERE contact_id = ?")
-            .run(contactId);
-    }
-
-    getRecentHistory(contactId: string, limit = 20): Message[] {
-        return this.db
-            .prepare(
-                "SELECT * FROM messages WHERE contact_id = ? ORDER BY datetime(created_at) DESC LIMIT ?",
-            )
-            .all(contactId, limit)
-            .reverse() as Message[];
-    }
-
-    getTotalMessagesToday(): number {
-        return (
-            this.db
-                .prepare(
-                    "SELECT COUNT(*) AS count FROM messages WHERE date(created_at, 'localtime') = date('now', 'localtime')",
-                )
-                .get() as { count: number }
-        ).count;
-    }
-
-    getAnalyticsSummary(): AnalyticsSummary {
-        const row = this.db
-            .prepare(
-                `SELECT
-          (SELECT COUNT(*) FROM messages WHERE date(created_at, 'localtime') = date('now', 'localtime')) AS messages_today,
-          (SELECT COUNT(*) FROM messages WHERE datetime(created_at) >= datetime('now', '-7 days')) AS messages_this_week,
-          (SELECT COUNT(DISTINCT contact_id) FROM messages WHERE date(created_at, 'localtime') = date('now', 'localtime')) AS active_contacts_today,
-          COALESCE((SELECT ROUND(AVG(latency_ms)) FROM messages WHERE direction = 'outbound' AND latency_ms IS NOT NULL), 0) AS avg_response_time_ms,
-          (SELECT COUNT(*) FROM system_logs WHERE level = 'error' AND message LIKE '%gemini%' AND date(created_at, 'localtime') = date('now', 'localtime')) AS gemini_errors_today`,
-            )
-            .get() as AnalyticsSummary;
-        return row;
-    }
-
-    addLog(
-        level: SystemLog["level"],
-        message: string,
-        meta?: Record<string, unknown>,
-    ): SystemLog {
-        const result = this.db
-            .prepare(
-                "INSERT INTO system_logs (level, message, meta) VALUES (?, ?, ?)",
-            )
-            .run(level, message, meta ? JSON.stringify(meta) : null);
-        const row = this.db
-            .prepare("SELECT * FROM system_logs WHERE id = ?")
-            .get(result.lastInsertRowid) as Omit<SystemLog, "meta"> & {
-            meta: string | null;
-        };
-
-        return {
-            ...row,
-            meta: row.meta
-                ? (JSON.parse(row.meta) as Record<string, unknown>)
-                : null,
-        };
-    }
-
-    listLogs(level?: string, limit = 100): SystemLog[] {
-        const rows = level
-            ? (this.db
-                  .prepare(
-                      "SELECT * FROM system_logs WHERE level = ? ORDER BY datetime(created_at) DESC LIMIT ?",
-                  )
-                  .all(level, limit) as Array<
-                  Omit<SystemLog, "meta"> & { meta: string | null }
-              >)
-            : (this.db
-                  .prepare(
-                      "SELECT * FROM system_logs ORDER BY datetime(created_at) DESC LIMIT ?",
-                  )
-                  .all(limit) as Array<
-                  Omit<SystemLog, "meta"> & { meta: string | null }
-              >);
-
-        return rows.map((row) => ({
-            ...row,
-            meta: row.meta
-                ? (JSON.parse(row.meta) as Record<string, unknown>)
-                : null,
-        }));
-    }
-
-    close(): void {
-        this.db.close();
-    }
+interface ContactRow {
+  id: string;
+  whatsapp_jid: string;
+  display_name: string | null;
+  is_blocked: boolean;
+  created_at: string;
+  updated_at: string;
+  last_seen_at: string | null;
 }
 
-export const appDb = new AppDatabase();
+interface MessageRow {
+  id: string;
+  whatsapp_message_id: string;
+  contact_id: string;
+  direction: MessageDirection;
+  body: string;
+  status: MessageStatus;
+  ai_model: string | null;
+  tokens_used: number | null;
+  latency_ms: number | null;
+  raw_payload: Record<string, unknown> | null;
+  created_at: string;
+}
+
+interface BotSettingsRow {
+  id: string;
+  bot_name: string;
+  system_prompt: string;
+  is_active: boolean;
+  ignore_groups: boolean;
+  tone_style: ToneStyle;
+  updated_at: string;
+}
+
+interface SystemLogRow {
+  id: number;
+  level: LogLevel;
+  event: string;
+  message: string;
+  meta: Record<string, unknown> | null;
+  created_at: string;
+}
+
+interface ConversationSummaryRow {
+  contact_id: string;
+  contact_name: string | null;
+  last_message: string;
+  last_message_at: string;
+  message_count: number;
+  avg_response_time_ms: number | null;
+}
+
+interface DatabaseAdapter {
+  getConfig(): Promise<BotConfig>;
+  updateConfig(patch: Partial<BotConfig>): Promise<BotConfig>;
+  upsertContact(id: string, name?: string | null): Promise<void>;
+  insertMessage(input: {
+    id: string;
+    contact_id: string;
+    direction: MessageDirection;
+    body: string;
+    status?: MessageStatus;
+    ai_model?: string | null;
+    tokens_used?: number | null;
+    latency_ms?: number | null;
+  }): Promise<Message>;
+  listConversations(page?: number, limit?: number): Promise<PaginatedResponse<ConversationSummary>>;
+  getConversation(contactId: string): Promise<ConversationDetail | null>;
+  clearConversation(contactId: string): Promise<void>;
+  getRecentHistory(contactId: string, limit?: number): Promise<Message[]>;
+  getTotalMessagesToday(): Promise<number>;
+  getAnalyticsSummary(): Promise<AnalyticsSummary>;
+  addLog(level: LogLevel, message: string, meta?: Record<string, unknown>): Promise<SystemLog>;
+  listLogs(level?: string, limit?: number): Promise<SystemLog[]>;
+  close(): Promise<void>;
+}
+
+class AppDatabase {
+  constructor(private readonly adapter: DatabaseAdapter) {}
+
+  getConfig(): Promise<BotConfig> {
+    return this.adapter.getConfig();
+  }
+
+  updateConfig(patch: Partial<BotConfig>): Promise<BotConfig> {
+    return this.adapter.updateConfig(patch);
+  }
+
+  upsertContact(id: string, name?: string | null): Promise<void> {
+    return this.adapter.upsertContact(id, name);
+  }
+
+  insertMessage(input: Parameters<DatabaseAdapter['insertMessage']>[0]): Promise<Message> {
+    return this.adapter.insertMessage(input);
+  }
+
+  listConversations(page = 1, limit = 20): Promise<PaginatedResponse<ConversationSummary>> {
+    return this.adapter.listConversations(page, limit);
+  }
+
+  getConversation(contactId: string): Promise<ConversationDetail | null> {
+    return this.adapter.getConversation(contactId);
+  }
+
+  clearConversation(contactId: string): Promise<void> {
+    return this.adapter.clearConversation(contactId);
+  }
+
+  getRecentHistory(contactId: string, limit = 20): Promise<Message[]> {
+    return this.adapter.getRecentHistory(contactId, limit);
+  }
+
+  getTotalMessagesToday(): Promise<number> {
+    return this.adapter.getTotalMessagesToday();
+  }
+
+  getAnalyticsSummary(): Promise<AnalyticsSummary> {
+    return this.adapter.getAnalyticsSummary();
+  }
+
+  addLog(level: LogLevel, message: string, meta?: Record<string, unknown>): Promise<SystemLog> {
+    return this.adapter.addLog(level, message, meta);
+  }
+
+  listLogs(level?: string, limit = 100): Promise<SystemLog[]> {
+    return this.adapter.listLogs(level, limit);
+  }
+
+  close(): Promise<void> {
+    return this.adapter.close();
+  }
+}
+
+class InMemoryDatabase implements DatabaseAdapter {
+  private config: BotConfig = { ...DEFAULT_CONFIG };
+  private contacts = new Map<string, ContactRow>();
+  private messages: MessageRow[] = [];
+  private logs: SystemLog[] = [];
+  private nextLogId = 1;
+
+  async getConfig(): Promise<BotConfig> {
+    return { ...this.config };
+  }
+
+  async updateConfig(patch: Partial<BotConfig>): Promise<BotConfig> {
+    this.config = { ...this.config, ...patch };
+    return this.getConfig();
+  }
+
+  async upsertContact(id: string, name?: string | null): Promise<void> {
+    const existing = this.contacts.get(id);
+    const now = new Date().toISOString();
+    this.contacts.set(id, {
+      id,
+      whatsapp_jid: id,
+      display_name: name ?? existing?.display_name ?? null,
+      is_blocked: existing?.is_blocked ?? false,
+      created_at: existing?.created_at ?? now,
+      updated_at: now,
+      last_seen_at: now
+    });
+  }
+
+  async insertMessage(input: {
+    id: string;
+    contact_id: string;
+    direction: MessageDirection;
+    body: string;
+    status?: MessageStatus;
+    ai_model?: string | null;
+    tokens_used?: number | null;
+    latency_ms?: number | null;
+  }): Promise<Message> {
+    await this.upsertContact(input.contact_id);
+
+    const now = new Date().toISOString();
+    const row: MessageRow = {
+      id: crypto.randomUUID(),
+      whatsapp_message_id: input.id,
+      contact_id: input.contact_id,
+      direction: input.direction,
+      body: input.body,
+      status: input.status ?? 'sent',
+      ai_model: input.ai_model ?? null,
+      tokens_used: input.tokens_used ?? null,
+      latency_ms: input.latency_ms ?? null,
+      raw_payload: null,
+      created_at: now
+    };
+
+    const existingIndex = this.messages.findIndex((message) => message.whatsapp_message_id === input.id);
+    if (existingIndex >= 0) {
+      this.messages[existingIndex] = row;
+    } else {
+      this.messages.push(row);
+    }
+
+    return mapMessageRow(row, input.contact_id);
+  }
+
+  async listConversations(page = 1, limit = 20): Promise<PaginatedResponse<ConversationSummary>> {
+    const summaries = [...this.contacts.values()]
+      .map((contact) => {
+        const contactMessages = this.messages
+          .filter((message) => message.contact_id === contact.whatsapp_jid)
+          .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+
+        if (contactMessages.length === 0) return null;
+
+        const outboundWithLatency = contactMessages.filter(
+          (message) => message.direction === 'outbound' && typeof message.latency_ms === 'number'
+        );
+
+        const avgResponseTimeMs =
+          outboundWithLatency.length === 0
+            ? null
+            : Math.round(
+                outboundWithLatency.reduce((total, message) => total + (message.latency_ms ?? 0), 0) /
+                  outboundWithLatency.length
+              );
+
+        return {
+          contact_id: contact.whatsapp_jid,
+          contact_name: contact.display_name,
+          last_message: contactMessages[0]!.body,
+          last_message_at: contactMessages[0]!.created_at,
+          message_count: contactMessages.length,
+          avg_response_time_ms: avgResponseTimeMs
+        } satisfies ConversationSummary;
+      })
+      .filter((value): value is ConversationSummary => value !== null)
+      .sort((a, b) => Date.parse(b.last_message_at) - Date.parse(a.last_message_at));
+
+    const offset = (page - 1) * limit;
+    return {
+      data: summaries.slice(offset, offset + limit),
+      pagination: {
+        page,
+        limit,
+        total: summaries.length
+      }
+    };
+  }
+
+  async getConversation(contactId: string): Promise<ConversationDetail | null> {
+    const contact = this.contacts.get(contactId);
+    if (!contact) return null;
+
+    const messages = this.messages
+      .filter((message) => message.contact_id === contactId)
+      .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))
+      .map((message) => mapMessageRow(message, contactId));
+
+    return {
+      contact: {
+        id: contact.whatsapp_jid,
+        name: contact.display_name
+      },
+      messages
+    };
+  }
+
+  async clearConversation(contactId: string): Promise<void> {
+    this.messages = this.messages.filter((message) => message.contact_id !== contactId);
+  }
+
+  async getRecentHistory(contactId: string, limit = 20): Promise<Message[]> {
+    return this.messages
+      .filter((message) => message.contact_id === contactId)
+      .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+      .slice(0, limit)
+      .reverse()
+      .map((message) => mapMessageRow(message, contactId));
+  }
+
+  async getTotalMessagesToday(): Promise<number> {
+    const { start, end } = getWibDayRange();
+    return this.messages.filter((message) => {
+      const createdAt = Date.parse(message.created_at);
+      return createdAt >= start.getTime() && createdAt < end.getTime();
+    }).length;
+  }
+
+  async getAnalyticsSummary(): Promise<AnalyticsSummary> {
+    const { start, end } = getWibDayRange();
+    const weekStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const messagesToday = this.messages.filter((message) => {
+      const createdAt = Date.parse(message.created_at);
+      return createdAt >= start.getTime() && createdAt < end.getTime();
+    });
+
+    const messagesThisWeek = this.messages.filter(
+      (message) => Date.parse(message.created_at) >= weekStart.getTime()
+    );
+
+    const outboundWithLatency = this.messages.filter(
+      (message) => message.direction === 'outbound' && typeof message.latency_ms === 'number'
+    );
+
+    const geminiErrorsToday = this.logs.filter(
+      (log) =>
+        log.level === 'error' &&
+        /gemini/i.test(log.message) &&
+        Date.parse(log.created_at) >= start.getTime() &&
+        Date.parse(log.created_at) < end.getTime()
+    ).length;
+
+    return {
+      messages_today: messagesToday.length,
+      messages_this_week: messagesThisWeek.length,
+      active_contacts_today: new Set(messagesToday.map((message) => message.contact_id)).size,
+      avg_response_time_ms:
+        outboundWithLatency.length === 0
+          ? 0
+          : Math.round(
+              outboundWithLatency.reduce((total, message) => total + (message.latency_ms ?? 0), 0) /
+                outboundWithLatency.length
+            ),
+      gemini_errors_today: geminiErrorsToday
+    };
+  }
+
+  async addLog(level: LogLevel, message: string, meta?: Record<string, unknown>): Promise<SystemLog> {
+    const log: SystemLog = {
+      id: this.nextLogId++,
+      level,
+      message,
+      meta: meta ?? null,
+      created_at: new Date().toISOString()
+    };
+    this.logs.unshift(log);
+    return log;
+  }
+
+  async listLogs(level?: string, limit = 100): Promise<SystemLog[]> {
+    const logs = level ? this.logs.filter((log) => log.level === level) : this.logs;
+    return logs.slice(0, limit);
+  }
+
+  async close(): Promise<void> {}
+}
+
+class SupabaseDatabase implements DatabaseAdapter {
+  private readonly ready: Promise<void>;
+
+  constructor() {
+    this.ready = this.ensureDefaultConfig();
+  }
+
+  async getConfig(): Promise<BotConfig> {
+    await this.ready;
+    const row = await this.fetchRequiredSettingsRow();
+    return mapConfigRow(row);
+  }
+
+  async updateConfig(patch: Partial<BotConfig>): Promise<BotConfig> {
+    await this.ready;
+    const current = await this.fetchRequiredSettingsRow();
+    const payload = {
+      bot_name: patch.bot_name ?? current.bot_name,
+      system_prompt: patch.system_prompt ?? current.system_prompt,
+      is_active: patch.is_active ?? current.is_active,
+      ignore_groups: patch.ignore_groups ?? current.ignore_groups,
+      tone_style: patch.tone_style ?? current.tone_style,
+      updated_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabaseAdmin!
+      .from('bot_settings')
+      .update(payload)
+      .eq('id', current.id)
+      .select('*')
+      .single();
+
+    assertSupabaseSuccess(error, 'Gagal mengupdate bot settings di Supabase.');
+    return mapConfigRow(data as BotSettingsRow);
+  }
+
+  async upsertContact(id: string, name?: string | null): Promise<void> {
+    await this.ready;
+    await this.ensureContact(id, name);
+  }
+
+  async insertMessage(input: {
+    id: string;
+    contact_id: string;
+    direction: MessageDirection;
+    body: string;
+    status?: MessageStatus;
+    ai_model?: string | null;
+    tokens_used?: number | null;
+    latency_ms?: number | null;
+  }): Promise<Message> {
+    await this.ready;
+    const contact = await this.ensureContact(input.contact_id);
+
+    const payload = {
+      whatsapp_message_id: input.id,
+      contact_id: contact.id,
+      direction: input.direction,
+      body: input.body,
+      status: input.status ?? 'sent',
+      ai_model: input.ai_model ?? null,
+      tokens_used: input.tokens_used ?? null,
+      latency_ms: input.latency_ms ?? null
+    };
+
+    const { data, error } = await supabaseAdmin!
+      .from('messages')
+      .upsert(payload, { onConflict: 'whatsapp_message_id' })
+      .select('*')
+      .single();
+
+    assertSupabaseSuccess(error, 'Gagal menyimpan message ke Supabase.');
+    return mapMessageRow(data as MessageRow, contact.whatsapp_jid);
+  }
+
+  async listConversations(page = 1, limit = 20): Promise<PaginatedResponse<ConversationSummary>> {
+    await this.ready;
+    const offset = (page - 1) * limit;
+
+    const query = supabaseAdmin!
+      .from('conversation_summaries')
+      .select('*', { count: 'exact' })
+      .order('last_message_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    const { data, error, count } = await query;
+    assertSupabaseSuccess(error, 'Gagal mengambil daftar percakapan dari Supabase.');
+
+    return {
+      data: ((data ?? []) as ConversationSummaryRow[]).map((row) => ({
+        contact_id: row.contact_id,
+        contact_name: row.contact_name,
+        last_message: row.last_message,
+        last_message_at: row.last_message_at,
+        message_count: Number(row.message_count),
+        avg_response_time_ms: row.avg_response_time_ms === null ? null : Number(row.avg_response_time_ms)
+      })),
+      pagination: {
+        page,
+        limit,
+        total: count ?? 0
+      }
+    };
+  }
+
+  async getConversation(contactId: string): Promise<ConversationDetail | null> {
+    await this.ready;
+    const contact = await this.findContactByJid(contactId);
+    if (!contact) return null;
+
+    const { data, error } = await supabaseAdmin!
+      .from('messages')
+      .select('*')
+      .eq('contact_id', contact.id)
+      .order('created_at', { ascending: true });
+
+    assertSupabaseSuccess(error, 'Gagal mengambil history percakapan dari Supabase.');
+
+    return {
+      contact: {
+        id: contact.whatsapp_jid,
+        name: contact.display_name
+      },
+      messages: ((data ?? []) as MessageRow[]).map((row) => mapMessageRow(row, contact.whatsapp_jid))
+    };
+  }
+
+  async clearConversation(contactId: string): Promise<void> {
+    await this.ready;
+    const contact = await this.findContactByJid(contactId);
+    if (!contact) return;
+
+    const { error } = await supabaseAdmin!.from('messages').delete().eq('contact_id', contact.id);
+    assertSupabaseSuccess(error, 'Gagal menghapus history percakapan dari Supabase.');
+  }
+
+  async getRecentHistory(contactId: string, limit = 20): Promise<Message[]> {
+    await this.ready;
+    const contact = await this.findContactByJid(contactId);
+    if (!contact) return [];
+
+    const { data, error } = await supabaseAdmin!
+      .from('messages')
+      .select('*')
+      .eq('contact_id', contact.id)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    assertSupabaseSuccess(error, 'Gagal mengambil recent history dari Supabase.');
+
+    return ((data ?? []) as MessageRow[])
+      .reverse()
+      .map((row) => mapMessageRow(row, contact.whatsapp_jid));
+  }
+
+  async getTotalMessagesToday(): Promise<number> {
+    await this.ready;
+    const { start, end } = getWibDayRange();
+
+    const { count, error } = await supabaseAdmin!
+      .from('messages')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', start.toISOString())
+      .lt('created_at', end.toISOString());
+
+    assertSupabaseSuccess(error, 'Gagal menghitung total message hari ini.');
+    return count ?? 0;
+  }
+
+  async getAnalyticsSummary(): Promise<AnalyticsSummary> {
+    await this.ready;
+    const { start, end } = getWibDayRange();
+    const weekStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    const [
+      messagesTodayResult,
+      messagesThisWeekResult,
+      activeContactsResult,
+      outboundLatencyResult,
+      geminiErrorsResult
+    ] = await Promise.all([
+      supabaseAdmin!
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .gte('created_at', start.toISOString())
+        .lt('created_at', end.toISOString()),
+      supabaseAdmin!
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .gte('created_at', weekStart),
+      supabaseAdmin!
+        .from('messages')
+        .select('contact_id')
+        .gte('created_at', start.toISOString())
+        .lt('created_at', end.toISOString()),
+      supabaseAdmin!
+        .from('messages')
+        .select('latency_ms')
+        .eq('direction', 'outbound')
+        .not('latency_ms', 'is', null),
+      supabaseAdmin!
+        .from('system_logs')
+        .select('id', { count: 'exact', head: true })
+        .eq('level', 'error')
+        .ilike('message', '%gemini%')
+        .gte('created_at', start.toISOString())
+        .lt('created_at', end.toISOString())
+    ]);
+
+    assertSupabaseSuccess(messagesTodayResult.error, 'Gagal mengambil analytics messages today.');
+    assertSupabaseSuccess(messagesThisWeekResult.error, 'Gagal mengambil analytics messages this week.');
+    assertSupabaseSuccess(activeContactsResult.error, 'Gagal mengambil analytics active contacts.');
+    assertSupabaseSuccess(outboundLatencyResult.error, 'Gagal mengambil analytics response time.');
+    assertSupabaseSuccess(geminiErrorsResult.error, 'Gagal mengambil analytics Gemini errors.');
+
+    const latencies = (outboundLatencyResult.data ?? [])
+      .map((row) => row.latency_ms)
+      .filter((value): value is number => typeof value === 'number');
+
+    return {
+      messages_today: messagesTodayResult.count ?? 0,
+      messages_this_week: messagesThisWeekResult.count ?? 0,
+      active_contacts_today: new Set((activeContactsResult.data ?? []).map((row) => row.contact_id)).size,
+      avg_response_time_ms:
+        latencies.length === 0 ? 0 : Math.round(latencies.reduce((total, value) => total + value, 0) / latencies.length),
+      gemini_errors_today: geminiErrorsResult.count ?? 0
+    };
+  }
+
+  async addLog(level: LogLevel, message: string, meta?: Record<string, unknown>): Promise<SystemLog> {
+    await this.ready;
+    const { data, error } = await supabaseAdmin!
+      .from('system_logs')
+      .insert({
+        level,
+        event: message,
+        message,
+        meta: meta ?? null
+      })
+      .select('*')
+      .single();
+
+    assertSupabaseSuccess(error, 'Gagal menyimpan system log ke Supabase.');
+    return mapSystemLogRow(data as SystemLogRow);
+  }
+
+  async listLogs(level?: string, limit = 100): Promise<SystemLog[]> {
+    await this.ready;
+
+    let query = supabaseAdmin!.from('system_logs').select('*').order('created_at', { ascending: false }).limit(limit);
+    if (level) {
+      query = query.eq('level', level);
+    }
+
+    const { data, error } = await query;
+    assertSupabaseSuccess(error, 'Gagal mengambil system logs dari Supabase.');
+    return ((data ?? []) as SystemLogRow[]).map(mapSystemLogRow);
+  }
+
+  async close(): Promise<void> {}
+
+  private async ensureDefaultConfig(): Promise<void> {
+    const existing = await this.fetchSettingsRow(true);
+    if (existing) return;
+
+    const { error } = await supabaseAdmin!.from('bot_settings').insert(DEFAULT_CONFIG);
+    assertSupabaseSuccess(
+      error,
+      'Gagal membuat default bot settings di Supabase. Pastikan migration sudah dijalankan.'
+    );
+  }
+
+  private async fetchSettingsRow(allowEmpty = false): Promise<BotSettingsRow | null> {
+    const { data, error } = await supabaseAdmin!.from('bot_settings').select('*').limit(1).maybeSingle();
+    assertSupabaseSuccess(error, 'Gagal membaca bot settings dari Supabase.');
+
+    if (!data && !allowEmpty) {
+      throw new Error('Bot settings belum tersedia di Supabase. Jalankan migration lalu seed default config.');
+    }
+
+    return (data as BotSettingsRow | null) ?? null;
+  }
+
+  private async fetchRequiredSettingsRow(): Promise<BotSettingsRow> {
+    const row = await this.fetchSettingsRow(false);
+    if (!row) {
+      throw new Error('Bot settings belum tersedia di Supabase. Jalankan migration lalu seed default config.');
+    }
+    return row;
+  }
+
+  private async findContactByJid(jid: string): Promise<ContactRow | null> {
+    const { data, error } = await supabaseAdmin!
+      .from('contacts')
+      .select('*')
+      .eq('whatsapp_jid', jid)
+      .maybeSingle();
+
+    assertSupabaseSuccess(error, 'Gagal mencari contact di Supabase.');
+    return (data as ContactRow | null) ?? null;
+  }
+
+  private async ensureContact(jid: string, name?: string | null): Promise<ContactRow> {
+    const payload = {
+      whatsapp_jid: jid,
+      display_name: name ?? null,
+      last_seen_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabaseAdmin!
+      .from('contacts')
+      .upsert(payload, { onConflict: 'whatsapp_jid' })
+      .select('*')
+      .single();
+
+    assertSupabaseSuccess(error, 'Gagal menyimpan contact ke Supabase.');
+    return data as ContactRow;
+  }
+}
+
+function mapConfigRow(row: BotSettingsRow): BotConfig {
+  return {
+    system_prompt: row.system_prompt ?? DEFAULT_CONFIG.system_prompt,
+    bot_name: row.bot_name ?? DEFAULT_CONFIG.bot_name,
+    is_active: row.is_active ?? DEFAULT_CONFIG.is_active,
+    ignore_groups: row.ignore_groups ?? DEFAULT_CONFIG.ignore_groups,
+    tone_style: row.tone_style ?? DEFAULT_CONFIG.tone_style
+  };
+}
+
+function mapMessageRow(row: MessageRow, contactJid: string): Message {
+  return {
+    id: row.whatsapp_message_id,
+    contact_id: contactJid,
+    direction: row.direction,
+    body: row.body,
+    status: row.status,
+    ai_model: row.ai_model,
+    tokens_used: row.tokens_used,
+    latency_ms: row.latency_ms,
+    created_at: row.created_at
+  };
+}
+
+function mapSystemLogRow(row: SystemLogRow): SystemLog {
+  return {
+    id: Number(row.id),
+    level: row.level,
+    message: row.message ?? row.event,
+    meta: row.meta ?? null,
+    created_at: row.created_at
+  };
+}
+
+function assertSupabaseSuccess(error: { message?: string } | null, fallbackMessage: string): void {
+  if (!error) return;
+
+  const message = error.message?.includes('relation')
+    ? `${fallbackMessage} Kemungkinan schema Supabase belum dibuat. Jalankan migration terlebih dulu.`
+    : `${fallbackMessage} ${error.message ?? ''}`.trim();
+
+  throw new Error(message);
+}
+
+function getWibDayRange(now = new Date()): { start: Date; end: Date } {
+  const offsetMs = 7 * 60 * 60 * 1000;
+  const wibNow = new Date(now.getTime() + offsetMs);
+  const startUtc = new Date(
+    Date.UTC(wibNow.getUTCFullYear(), wibNow.getUTCMonth(), wibNow.getUTCDate()) - offsetMs
+  );
+
+  return {
+    start: startUtc,
+    end: new Date(startUtc.getTime() + 24 * 60 * 60 * 1000)
+  };
+}
+
+const adapter = env.NODE_ENV === 'test' ? new InMemoryDatabase() : new SupabaseDatabase();
+
+export const appDb = new AppDatabase(adapter);

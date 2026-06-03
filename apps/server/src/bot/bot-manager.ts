@@ -158,7 +158,7 @@ export class BotManager {
             return;
         }
 
-        const config = appDb.getConfig();
+        const config = await appDb.getConfig();
         const isGroup = jid.endsWith("@g.us");
         if (!config.is_active || (isGroup && config.ignore_groups)) return;
 
@@ -173,15 +173,15 @@ export class BotManager {
         }
 
         const contactName = message.pushName ?? null;
-        appDb.upsertContact(jid, contactName);
-        const inbound = appDb.insertMessage({
+        await appDb.upsertContact(jid, contactName);
+        const inbound = await appDb.insertMessage({
             id: messageId,
             contact_id: jid,
             direction: "inbound",
             body: text,
         });
         emitNewMessage(jid, inbound);
-        emitAnalyticsUpdate(appDb.getAnalyticsSummary());
+        emitAnalyticsUpdate(await appDb.getAnalyticsSummary());
         logService.write("info", "message_received", {
             contactId: jid,
             inputLength: text.length,
@@ -193,7 +193,7 @@ export class BotManager {
         const intent = detectIntent(sanitized.sanitized);
         if (intent === "reset") {
             memory.clearSession(jid);
-            appDb.clearConversation(jid);
+            await appDb.clearConversation(jid);
             await this.sendAndLog(jid, ERROR_MESSAGES.reset, null, 0);
             return;
         }
@@ -226,8 +226,8 @@ export class BotManager {
         latencyMs: number | null,
     ): Promise<Message> {
         await this.sock?.sendMessage(jid, { text: body });
-        appDb.upsertContact(jid);
-        const outbound = appDb.insertMessage({
+        await appDb.upsertContact(jid);
+        const outbound = await appDb.insertMessage({
             id: `bot-${Date.now()}-${crypto.randomUUID()}`,
             contact_id: jid,
             direction: "outbound",
@@ -236,7 +236,7 @@ export class BotManager {
             latency_ms: latencyMs,
         });
         emitNewMessage(jid, outbound);
-        emitAnalyticsUpdate(appDb.getAnalyticsSummary());
+        emitAnalyticsUpdate(await appDb.getAnalyticsSummary());
         return outbound;
     }
 

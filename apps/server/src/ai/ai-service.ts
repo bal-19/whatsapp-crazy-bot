@@ -29,8 +29,8 @@ export async function generateBotReply(input: GenerateReplyInput): Promise<Gener
   }
 
   const startedAt = Date.now();
-  const config = input.config ?? appDb.getConfig();
-  ensureMemoryHydrated(input.contactId);
+  const config = input.config ?? (await appDb.getConfig());
+  await ensureMemoryHydrated(input.contactId);
 
   const systemPrompt = buildSystemPrompt({
     botName: config.bot_name,
@@ -57,11 +57,11 @@ export async function generateBotReply(input: GenerateReplyInput): Promise<Gener
   }
 }
 
-function ensureMemoryHydrated(contactId: string): void {
+async function ensureMemoryHydrated(contactId: string): Promise<void> {
   const current = memory.getHistory(contactId);
   if (current.length > 0) return;
 
-  const rows = appDb.getRecentHistory(contactId, 20);
+  const rows = await appDb.getRecentHistory(contactId, 20);
   const history: Content[] = rows
     .filter((message): message is Message => Boolean(message.body))
     .map((message) => ({

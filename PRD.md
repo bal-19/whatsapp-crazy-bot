@@ -2,7 +2,7 @@
 ## WhatsApp AI Bot — Powered by Gemini AI
 
 **Version:** 1.0.0
-**Last Updated:** 2025-06-03
+**Last Updated:** 2026-06-03
 **Status:** Draft
 **Author:** —
 **Stakeholders:** Product, Engineering, QA
@@ -90,7 +90,7 @@ Gemini 1.5 Flash Free Tier sekarang accessible, jadi kita bisa bikin entertainme
 - [x] Dashboard web: Test Prompt feature (preview bot response)
 - [x] Dashboard web: statistik dasar (total pesan, pesan/hari, engagement metrics)
 - [x] Auto-reconnect saat koneksi WA terputus
-- [x] Logging semua percakapan ke database lokal (SQLite)
+- [x] Logging semua percakapan ke Supabase PostgreSQL dengan skema terstruktur
 - [x] Rate limiting untuk menghindari abuse Gemini Free Tier
 - [x] Entertainment-focused error messages & reply templates
 
@@ -206,7 +206,7 @@ Lihat [Bagian 16](#16-out-of-scope).
 
 ### NFR-03: Scalability
 - Arsitektur mendukung penambahan multiple bot instances di masa depan
-- Database SQLite dapat dimigrasikan ke PostgreSQL tanpa perubahan kode signifikan
+- Persistence layer menggunakan Supabase PostgreSQL agar mendukung concurrent access, backup, dan growth tanpa single-file bottleneck
 
 ### NFR-04: Maintainability
 - Code coverage minimal **60%** untuk unit test
@@ -255,11 +255,11 @@ Lihat [Bagian 16](#16-out-of-scope).
           │
 ┌─────────▼───────────────────────────────────────────────┐
 │                   PERSISTENCE LAYER                      │
-│  ┌──────────────┐   ┌─────────────────┐                 │
-│  │   SQLite DB   │   │  Auth State     │                 │
-│  │  (messages,   │   │  (WA session)   │                 │
-│  │   contacts)   │   │                 │                 │
-│  └──────────────┘   └─────────────────┘                 │
+│  ┌──────────────────────┐  ┌──────────────────────────┐ │
+│  │ Supabase Postgres    │  │  WA Auth State Storage   │ │
+│  │ (messages, contacts, │  │  (filesystem/object      │ │
+│  │ config, logs)        │  │   storage, encrypted)    │ │
+│  └──────────────────────┘  └──────────────────────────┘ │
 └─────────────────────────────────────────────────────────┘
           │
 ┌─────────▼───────────────────────────────────────────────┐
@@ -285,7 +285,8 @@ Lihat [Bagian 16](#16-out-of-scope).
 | WA Library | @whiskeysockets/baileys | latest | Most maintained unofficial WA lib |
 | AI SDK | @google/generative-ai | latest | Official Gemini SDK |
 | HTTP Server | Express | ^4.x | Minimal, proven, luas ekosistem |
-| Database | better-sqlite3 | latest | Embedded, zero-config, sinkron |
+| Database | Supabase PostgreSQL | latest | Managed Postgres, scalable, backup-ready, REST/realtime capable |
+| DB Client | @supabase/supabase-js | latest | Official Supabase client untuk query, auth, dan service-role workflows |
 | Queue | p-queue | latest | Simple promise queue, lightweight |
 | Env Config | dotenv | latest | Standard env management |
 | Logging | pino | latest | Structured logging, performant |
@@ -306,58 +307,104 @@ Lihat [Bagian 16](#16-out-of-scope).
 
 ## 10. Data Model
 
+### Prinsip Desain Data
+- Supabase menjadi source of truth untuk data aplikasi: contacts, messages, bot settings, dan system logs
+- Gunakan UUID untuk primary key internal, bukan bergantung ke natural key WA saja
+- Simpan `whatsapp_jid` sebagai kolom unik terpisah agar relasi tetap fleksibel
+- Gunakan `timestamptz` untuk semua timestamp
+- Simpan metadata semi-terstruktur di `jsonb`, bukan string JSON biasa
+- Semua akses dari backend memakai service role key; frontend hanya lewat API backend atau view yang aman
+
 ### Tabel: `contacts`
 ```sql
-CREATE TABLE contacts (
-  id          TEXT PRIMARY KEY,  -- nomor WA (e.g., "6281234567890@s.whatsapp.net")
-  name        TEXT,              -- nama dari WA profile
-  is_blocked  INTEGER DEFAULT 0,
-  created_at  TEXT DEFAULT (datetime('now')),
-  last_seen   TEXT
+create table public.contacts (
+  id uuid primary key default gen_random_uuid(),
+  whatsapp_jid text not null unique,
+  display_name text,
+  is_blocked boolean not null default false,
+  last_seen_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
+
+create index contacts_last_seen_at_idx on public.contacts (last_seen_at desc);
 ```
 
 ### Tabel: `messages`
 ```sql
-CREATE TABLE messages (
-  id           TEXT PRIMARY KEY,  -- WA message ID
-  contact_id   TEXT NOT NULL,
-  direction    TEXT CHECK(direction IN ('inbound', 'outbound')),
-  body         TEXT NOT NULL,
-  status       TEXT DEFAULT 'sent',  -- sent | delivered | read | failed
-  ai_model     TEXT,              -- model AI yang dipakai
-  tokens_used  INTEGER,          -- estimasi token
-  latency_ms   INTEGER,          -- waktu respons AI
-  created_at   TEXT DEFAULT (datetime('now')),
-  FOREIGN KEY (contact_id) REFERENCES contacts(id)
+create table public.messages (
+  id uuid primary key default gen_random_uuid(),
+  whatsapp_message_id text not null unique,
+  contact_id uuid not null references public.contacts(id) on delete cascade,
+  direction text not null check (direction in ('inbound', 'outbound')),
+  body text not null,
+  status text not null default 'sent' check (status in ('queued', 'sent', 'delivered', 'read', 'failed')),
+  ai_model text,
+  tokens_used integer,
+  latency_ms integer,
+  raw_payload jsonb,
+  created_at timestamptz not null default now()
 );
+
+create index messages_contact_id_created_at_idx
+  on public.messages (contact_id, created_at desc);
+create index messages_created_at_idx
+  on public.messages (created_at desc);
 ```
 
-### Tabel: `bot_config`
+### Tabel: `bot_settings`
 ```sql
-CREATE TABLE bot_config (
-  key         TEXT PRIMARY KEY,
-  value       TEXT NOT NULL,
-  updated_at  TEXT DEFAULT (datetime('now'))
+create table public.bot_settings (
+  id uuid primary key default gen_random_uuid(),
+  bot_name text not null,
+  system_prompt text not null,
+  persona text not null,
+  tone text not null default 'pedas' check (tone in ('pedas', 'wholesome', 'absurd')),
+  is_active boolean not null default true,
+  ignore_groups boolean not null default true,
+  business_hours jsonb,
+  updated_at timestamptz not null default now()
 );
-
--- Default rows:
--- ('system_prompt', 'Kamu adalah asisten AI yang membantu...')
--- ('bot_name', 'Asisten')
--- ('is_active', '1')
--- ('ignore_groups', '1')
 ```
 
 ### Tabel: `system_logs`
 ```sql
-CREATE TABLE system_logs (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  level      TEXT CHECK(level IN ('info', 'warn', 'error')),
-  message    TEXT NOT NULL,
-  meta       TEXT,  -- JSON string
-  created_at TEXT DEFAULT (datetime('now'))
+create table public.system_logs (
+  id bigint generated always as identity primary key,
+  level text not null check (level in ('info', 'warn', 'error')),
+  event text not null,
+  message text not null,
+  meta jsonb,
+  created_at timestamptz not null default now()
 );
+
+create index system_logs_level_created_at_idx
+  on public.system_logs (level, created_at desc);
 ```
+
+### Tabel Opsional: `conversation_sessions`
+Dipakai jika sesi percakapan ingin durable lintas restart atau lintas instance. Untuk MVP, history aktif tetap bisa di-cache di memory, lalu direkonstruksi dari `messages` saat cache miss.
+
+```sql
+create table public.conversation_sessions (
+  id uuid primary key default gen_random_uuid(),
+  contact_id uuid not null references public.contacts(id) on delete cascade,
+  history jsonb not null default '[]'::jsonb,
+  last_activity_at timestamptz not null default now(),
+  expires_at timestamptz not null
+);
+
+create unique index conversation_sessions_contact_id_idx
+  on public.conversation_sessions (contact_id);
+```
+
+### Best Practices Supabase
+- Aktifkan Row Level Security pada semua tabel; jika dashboard tidak mengakses Supabase langsung, tetap enable RLS dan batasi seluruh akses publik
+- Backend server memakai `SUPABASE_SERVICE_ROLE_KEY`; jangan expose key ini ke browser
+- Buat migration versioned untuk seluruh schema change, jangan edit schema manual di production
+- Gunakan database indexes untuk query dashboard yang disort berdasarkan `created_at` dan `contact_id`
+- Pisahkan data sensitif atau payload besar ke `jsonb` dan tambahkan retention policy untuk log
+- Pertimbangkan Realtime Supabase hanya untuk dashboard event ringan; proses bot tetap event-driven dari backend
 
 ---
 
@@ -473,7 +520,7 @@ Incoming Message → [In-Memory Queue] → Rate Limiter (12/min) → Gemini API
 | Gemini API error (5xx) | Log error, kirim fallback | "Maaf ada gangguan teknis, tim kami sedang memperbaiki" |
 | WA koneksi terputus | Auto-reconnect dengan backoff (5s, 10s, 30s) | — (silent reconnect) |
 | WA logged out | Stop bot, notifikasi di dashboard, butuh scan QR ulang | — |
-| Database error | Log, gunakan in-memory fallback sementara | — |
+| Database error / Supabase unavailable | Log, buffer sementara di memory queue, retry write dengan backoff | — |
 
 ---
 

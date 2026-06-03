@@ -32,7 +32,7 @@ describe('api', () => {
 
   after(() => {
     server?.close();
-    appDb.close();
+    return appDb.close();
   });
 
   it('requires JWT for protected endpoints', async (t) => {

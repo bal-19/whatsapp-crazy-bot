@@ -1,3 +1,4 @@
+import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
 import { z } from 'zod';
 import type { BotConfig, LoginRequest, TestPromptRequest } from '@whatsapp-bot/shared';
@@ -10,7 +11,7 @@ import { generateBotReply } from '../ai/ai-service.js';
 export function createApiRouter(): Router {
   const router = Router();
 
-  router.post('/auth/login', async (req, res) => {
+  router.post('/auth/login', asyncHandler(async (req, res) => {
     const body = loginSchema.safeParse(req.body);
     if (!body.success) {
       res.status(400).json({ message: 'Invalid login payload' });
@@ -24,60 +25,60 @@ export function createApiRouter(): Router {
     }
 
     res.json({ token: signToken(body.data.username) });
-  });
+  }));
 
   router.use(requireAuth);
 
-  router.get('/status', (_req, res) => {
+  router.get('/status', asyncHandler(async (_req, res) => {
     res.json({
       status: botManager.getStatus(),
       uptime_seconds: botManager.getUptimeSeconds(),
-      total_messages_today: appDb.getTotalMessagesToday(),
+      total_messages_today: await appDb.getTotalMessagesToday(),
       queue_size: getQueueSize()
     });
-  });
+  }));
 
-  router.get('/conversations', (req, res) => {
+  router.get('/conversations', asyncHandler(async (req, res) => {
     const page = numberQuery(req.query.page, 1);
     const limit = numberQuery(req.query.limit, 20);
-    res.json(appDb.listConversations(page, limit));
-  });
+    res.json(await appDb.listConversations(page, limit));
+  }));
 
-  router.get('/conversations/:contactId', (req, res) => {
-    const detail = appDb.getConversation(req.params.contactId);
+  router.get('/conversations/:contactId', asyncHandler(async (req, res) => {
+    const detail = await appDb.getConversation(req.params.contactId);
     if (!detail) {
       res.status(404).json({ message: 'Conversation not found' });
       return;
     }
     res.json(detail);
-  });
+  }));
 
-  router.delete('/conversations/:contactId/history', (req, res) => {
-    appDb.clearConversation(req.params.contactId);
+  router.delete('/conversations/:contactId/history', asyncHandler(async (req, res) => {
+    await appDb.clearConversation(req.params.contactId);
     res.status(204).send();
-  });
+  }));
 
-  router.get('/config', (_req, res) => {
-    res.json(appDb.getConfig());
-  });
+  router.get('/config', asyncHandler(async (_req, res) => {
+    res.json(await appDb.getConfig());
+  }));
 
-  router.put('/config', (req, res) => {
+  router.put('/config', asyncHandler(async (req, res) => {
     const body = configSchema.partial().safeParse(req.body);
     if (!body.success) {
       res.status(400).json({ message: 'Invalid config payload', issues: body.error.issues });
       return;
     }
-    res.json(appDb.updateConfig(body.data));
-  });
+    res.json(await appDb.updateConfig(body.data));
+  }));
 
-  router.post('/test-prompt', async (req, res) => {
+  router.post('/test-prompt', asyncHandler(async (req, res) => {
     const body = testPromptSchema.safeParse(req.body);
     if (!body.success) {
       res.status(400).json({ message: 'Invalid test prompt payload', issues: body.error.issues });
       return;
     }
 
-    const baseConfig = appDb.getConfig();
+    const baseConfig = await appDb.getConfig();
     const result = await generateBotReply({
       contactId: 'dashboard-test',
       contactName: 'Admin Dashboard',
@@ -86,22 +87,22 @@ export function createApiRouter(): Router {
     });
 
     res.json({ reply: result.reply, latency_ms: result.latencyMs });
-  });
+  }));
 
-  router.get('/analytics/summary', (_req, res) => {
-    res.json(appDb.getAnalyticsSummary());
-  });
+  router.get('/analytics/summary', asyncHandler(async (_req, res) => {
+    res.json(await appDb.getAnalyticsSummary());
+  }));
 
-  router.get('/logs', (req, res) => {
+  router.get('/logs', asyncHandler(async (req, res) => {
     const level = typeof req.query.level === 'string' ? req.query.level : undefined;
     const limit = numberQuery(req.query.limit, 100);
-    res.json({ data: appDb.listLogs(level, limit) });
-  });
+    res.json({ data: await appDb.listLogs(level, limit) });
+  }));
 
-  router.post('/bot/restart', async (_req, res) => {
+  router.post('/bot/restart', asyncHandler(async (_req, res) => {
     await botManager.restart();
     res.status(202).json({ status: botManager.getStatus() });
-  });
+  }));
 
   return router;
 }
@@ -116,7 +117,7 @@ const configSchema = z.object({
   bot_name: z.string().min(1).max(80),
   is_active: z.boolean(),
   ignore_groups: z.boolean(),
-  tone_style: z.enum(['pedas', 'wholesome', 'absurd', 'custom'])
+  tone_style: z.enum(['pedas', 'wholesome', 'absurd', 'helpful', 'custom'])
 }) satisfies z.ZodType<BotConfig>;
 
 const testPromptSchema = z.object({
@@ -127,4 +128,12 @@ const testPromptSchema = z.object({
 function numberQuery(value: unknown, fallback: number): number {
   const parsed = typeof value === 'string' ? Number.parseInt(value, 10) : NaN;
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function asyncHandler(
+  handler: (req: Request, res: Response, next: NextFunction) => Promise<void>
+) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    void handler(req, res, next).catch(next);
+  };
 }

@@ -170,7 +170,7 @@ export function buildSystemPrompt(ctx: PromptContext): string {
 - Tone mu: serius tapi kocak, pedas tapi tidak menyakiti, smart-ass tapi tidak annoying.
 `.trim();
 
-  // LAYER 2: Persona (Dari database/config)
+  // LAYER 2: Persona (Dari Supabase/config service)
   const personaSection = `
 ## Identitas & Persona
 ${ctx.persona}
@@ -215,13 +215,22 @@ Batasan (Penting!):
 
 ### Prinsip Desain
 
-> Setiap nomor WhatsApp memiliki **sesi percakapan terpisah**. Memory berupa sliding window 20 pesan terakhir (10 pasang user-model).
+> Setiap nomor WhatsApp memiliki **sesi percakapan terpisah**. Memory berupa sliding window 20 pesan terakhir (10 pasang user-model), dengan Supabase sebagai source of truth dan in-memory cache untuk performa.
+
+### Best Practice Penyimpanan Memory
+
+- Gunakan `messages` di Supabase PostgreSQL sebagai canonical history semua percakapan
+- Pertahankan cache in-memory per contact untuk window aktif agar latency tetap rendah
+- Saat cache miss atau server restart, rekonstruksi 10 turn terakhir dari Supabase
+- Simpan config bot (`bot_name`, `persona`, `system_prompt`, flags) di tabel `bot_settings`, bukan hardcoded file lokal
+- Backend harus memakai `SUPABASE_SERVICE_ROLE_KEY`; dashboard tidak boleh akses tabel internal langsung tanpa kontrol backend atau RLS yang ketat
 
 ### Implementasi: `ConversationMemory`
 
 ```typescript
 // src/ai/conversation-memory.ts
 import type { Content } from '@google/generative-ai';
+import { supabaseAdmin } from '../lib/supabase.js';
 
 interface Session {
   history: Content[];   // Format Gemini: [{role, parts}]
@@ -233,18 +242,47 @@ export class ConversationMemory {
   private readonly MAX_TURNS = 10;      // 10 pasang = 20 pesan
   private readonly TTL_MS = 3_600_000;  // Session hangus setelah 1 jam idle
 
+  async warmup(contactId: string): Promise<void> {
+    if (this.sessions.has(contactId)) return;
+
+    const { data, error } = await supabaseAdmin
+      .from('messages')
+      .select('direction, body, created_at')
+      .eq('contact_id', contactId)
+      .order('created_at', { ascending: false })
+      .limit(this.MAX_TURNS * 2);
+
+    if (error) throw error;
+
+    const history = [...(data ?? [])]
+      .reverse()
+      .map((message) => ({
+        role: message.direction === 'inbound' ? 'user' : 'model',
+        parts: [{ text: message.body }],
+      }));
+
+    this.sessions.set(contactId, {
+      history,
+      lastActivity: new Date(),
+    });
+  }
+
   /**
    * Ambil history percakapan untuk kontak tertentu
    * Jika tidak ada atau sudah expired, kembalikan array kosong
    */
-  getHistory(contactId: string): Content[] {
+  async getHistory(contactId: string): Promise<Content[]> {
     const session = this.sessions.get(contactId);
-    if (!session) return [];
+    if (!session) {
+      await this.warmup(contactId);
+      return this.sessions.get(contactId)?.history ?? [];
+    }
     
     const isExpired = Date.now() - session.lastActivity.getTime() > this.TTL_MS;
     if (isExpired) {
       this.sessions.delete(contactId);
-      return [];
+      await this.warmup(contactId);
+      return this.sessions.get(contactId)?.history ?? [];
     }
     
     return session.history;
@@ -253,8 +291,8 @@ export class ConversationMemory {
   /**
    * Tambah satu pasang pesan (user + model) ke history
    */
-  addTurn(contactId: string, userMessage: string, modelReply: string): void {
-    const history = this.getHistory(contactId);
+  async addTurn(contactId: string, userMessage: string, modelReply: string): Promise<void> {
+    const history = await this.getHistory(contactId);
     
     // Tambah pasang baru
     history.push(
@@ -292,10 +330,17 @@ export class ConversationMemory {
   }
 }
 
-// Jalankan cleanup setiap 30 menit
+// Jalankan cleanup setiap 30 menit; source of truth tetap di Supabase
 export const memory = new ConversationMemory();
 setInterval(() => memory.purgeExpired(), 30 * 60 * 1000);
 ```
+
+### Catatan Arsitektur
+
+- Cache memory tidak menggantikan database; ia hanya layer performa
+- Penulisan message ke Supabase dilakukan lebih dulu atau dalam transaksi logis yang terjamin retry-nya
+- Jika Supabase gagal sementara, simpan event ke retry queue internal dan jangan langsung menghapus state cache
+- Untuk multi-instance deployment, jangan mengandalkan `Map` saja sebagai satu-satunya sumber context
 
 ---
 

@@ -149,12 +149,6 @@ export class BotManager {
 
         const text = extractText(message);
         if (!text) {
-            await this.sendAndLog(
-                jid,
-                "Gambar/media masuk. Gw belum bisa lihat isinya, tapi vibes-nya udah gw nilai duluan. 😌",
-                null,
-                0,
-            );
             return;
         }
 

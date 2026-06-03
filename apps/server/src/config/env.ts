@@ -17,7 +17,8 @@ const envSchema = z.object({
   SUPABASE_URL: z.string().url().optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   SUPABASE_DB_SCHEMA: z.string().default('public'),
-  WA_AUTH_DIR: z.string().default('./whatsapp-auth')
+  WA_AUTH_DIR: z.string().default('./whatsapp-auth'),
+  WA_QR_TIMEOUT_MS: z.coerce.number().int().positive().default(120_000)
 });
 
 const parsedEnv = envSchema.parse(process.env);

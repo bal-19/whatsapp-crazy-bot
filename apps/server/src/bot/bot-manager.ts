@@ -57,6 +57,7 @@ export class BotManager {
                 auth: state,
                 version,
                 printQRInTerminal: false,
+                qrTimeout: env.WA_QR_TIMEOUT_MS,
                 browser: Browsers.macOS("WhatsApp AI Bot"),
             });
 
@@ -68,7 +69,9 @@ export class BotManager {
                 void this.handleMessages(event.messages);
             });
 
-            logService.write("info", "bot_starting");
+            logService.write("info", "bot_starting", {
+                qrTimeoutMs: env.WA_QR_TIMEOUT_MS,
+            });
         } catch (error) {
             this.setStatus("disconnected");
             logService.write("error", "bot_start_failed", {

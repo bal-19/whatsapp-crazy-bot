@@ -14,7 +14,7 @@ export function ConversationsPage() {
     const active = conversations.find((conversation) => conversation.contact_id === activeContactId);
 
     // Display phone number only
-    const displayName = extractPhoneFromJid(active?.contact_id);
+    const displayName = extractPhoneFromJid(active?.contact_id) + (active?.contact_name ? ` (${active.contact_name})` : '');
 
     useEffect(() => {
         void loadConversations();

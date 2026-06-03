@@ -6,6 +6,11 @@
 import { supabaseAdmin } from "../lib/supabase.js";
 import { hashPassword } from "../auth/jwt.js";
 
+// Type guard to ensure supabaseAdmin is not null
+if (!supabaseAdmin) {
+    throw new Error("Supabase admin client is not initialized");
+}
+
 export interface AdminUser {
     id: string;
     username: string;
@@ -38,7 +43,7 @@ export async function createAdminUser(
 ): Promise<AdminUser> {
     const passwordHash = await hashPassword(input.password);
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin!
         .from("admin_users")
         .insert({
             username: input.username,
@@ -62,7 +67,7 @@ export async function createAdminUser(
 export async function getAdminUserByUsername(
     username: string,
 ): Promise<AdminUser | null> {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin!
         .from("admin_users")
         .select(
             "id, username, email, is_active, last_login_at, created_at, updated_at",
@@ -103,7 +108,7 @@ export async function updateAdminUser(
         updates.is_active = input.is_active;
     }
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin!
         .from("admin_users")
         .update(updates)
         .eq("id", userId)
@@ -121,7 +126,7 @@ export async function updateAdminUser(
  * @param userId - User ID to delete
  */
 export async function deleteAdminUser(userId: string): Promise<void> {
-    const { error } = await supabaseAdmin
+    const { error } = await supabaseAdmin!
         .from("admin_users")
         .delete()
         .eq("id", userId);
@@ -134,7 +139,7 @@ export async function deleteAdminUser(userId: string): Promise<void> {
  * @returns Array of admin users (without password hashes)
  */
 export async function listAdminUsers(): Promise<AdminUser[]> {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin!
         .from("admin_users")
         .select(
             "id, username, email, is_active, last_login_at, created_at, updated_at",
@@ -151,7 +156,7 @@ export async function listAdminUsers(): Promise<AdminUser[]> {
  * @param userId - User ID to update
  */
 export async function updateLastLoginAt(userId: string): Promise<void> {
-    const { error } = await supabaseAdmin
+    const { error } = await supabaseAdmin!
         .from("admin_users")
         .update({ last_login_at: new Date().toISOString() })
         .eq("id", userId);

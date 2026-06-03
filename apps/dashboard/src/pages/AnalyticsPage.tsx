@@ -1,8 +1,7 @@
 import { AlertTriangle, Clock3, MessageCircle, Users } from 'lucide-react';
 import { useEffect } from 'react';
 import { MessageVolumeChart } from '../components/features/analytics/MessageVolumeChart';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { StatCard } from '../components/ui/StatCard';
+import { Card, CardContent, CardHeader, CardTitle, StatCard } from '../components/ui';
 import { useBotStore } from '../stores/botStore';
 
 export function AnalyticsPage() {

@@ -1,10 +1,6 @@
 import type { BotConfig } from '@whatsapp-bot/shared';
 import { Save, RotateCcw } from 'lucide-react';
-import { Button } from '../../ui/button';
-import { Input } from '../../ui/input';
-import { Textarea } from '../../ui/textarea';
-import { Switch } from '../../ui/switch';
-import { Label } from '../../ui/label';
+import { Button, Input, Textarea, Switch, Label } from '../../ui';
 
 interface ConfigFormProps {
     draft: BotConfig;

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Search } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Input } from '../components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle, Input } from '../components/ui';
 import { useLogStore } from '../stores/logStore';
 import { cn, formatDate } from '../lib/utils';
 

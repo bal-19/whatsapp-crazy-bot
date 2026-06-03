@@ -2,10 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bot } from 'lucide-react';
 import { authService } from '../lib/services/authService';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
-import { Label } from '../components/ui/label';
+import { Button, Input, Card, CardContent, CardHeader, CardTitle, CardDescription, Label } from '../components/ui';
 
 export function LoginPage() {
     const navigate = useNavigate();

@@ -1,8 +1,7 @@
 import { Activity, Gauge, MessageCircle, Timer } from 'lucide-react';
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { StatCard } from '../components/ui/StatCard';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { StatCard, Card, CardContent, CardHeader, CardTitle } from '../components/ui';
 import { MessageVolumeChart } from '../components/features/analytics/MessageVolumeChart';
 import { useBotStore } from '../stores/botStore';
 import { useConversationStore } from '../stores/conversationStore';

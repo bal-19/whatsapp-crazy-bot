@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Card, CardContent } from './card';
+import { Card, CardContent } from './index';
 import { cn } from '../../lib/utils';
 
 interface StatCardProps {

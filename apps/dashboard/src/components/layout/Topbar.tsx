@@ -1,8 +1,8 @@
 import { LogOut, RefreshCw, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useBotStore } from '../../stores/botStore';
-import { StatusBadge } from '../ui/StatusBadge';
-import { Button } from '../ui/button';
+import { StatusBadge } from '../ui';
+import { Button } from '../ui';
 import { formatDuration } from '../../lib/utils';
 
 export function Topbar() {

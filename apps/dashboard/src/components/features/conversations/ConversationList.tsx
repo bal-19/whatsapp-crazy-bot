@@ -1,8 +1,8 @@
 import type { ConversationSummary } from '@whatsapp-bot/shared';
 import { Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { Input } from '../../ui';
-import { cn, formatDate } from '../../../lib/utils';
+import { Input } from '@/components/ui';
+import { cn, formatDate } from '@/lib/utils';
 
 interface ConversationListProps {
     conversations: ConversationSummary[];

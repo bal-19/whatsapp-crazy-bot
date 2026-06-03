@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
-import { ConversationList } from '../components/features/conversations/ConversationList';
-import { ChatWindow } from '../components/features/conversations/ChatWindow';
-import { useConversationStore } from '../stores/conversationStore';
+import { ConversationList } from '@/components/features/conversations/ConversationList';
+import { ChatWindow } from '@/components/features/conversations/ChatWindow';
+import { useConversationStore } from '@/stores/conversationStore';
 
 // Helper: Extract phone number from JID format (6281234567890@s.whatsapp.net -> 6281234567890)
 function extractPhoneFromJid(jid: string | undefined): string {

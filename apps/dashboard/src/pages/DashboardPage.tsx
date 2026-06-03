@@ -1,11 +1,11 @@
 import { Activity, Gauge, MessageCircle, Timer } from 'lucide-react';
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { StatCard, Card, CardContent, CardHeader, CardTitle } from '../components/ui';
-import { MessageVolumeChart } from '../components/features/analytics/MessageVolumeChart';
-import { useBotStore } from '../stores/botStore';
-import { useConversationStore } from '../stores/conversationStore';
-import { formatDate } from '../lib/utils';
+import { StatCard, Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
+import { MessageVolumeChart } from '@/components/features/analytics/MessageVolumeChart';
+import { useBotStore } from '@/stores/botStore';
+import { useConversationStore } from '@/stores/conversationStore';
+import { formatDate } from '@/lib/utils';
 
 export function DashboardPage() {
     const { status, totalMessagesToday, analytics, queueSize, loadAnalytics } = useBotStore();

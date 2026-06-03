@@ -1,7 +1,6 @@
 import type { Message } from '@whatsapp-bot/shared';
 import { MessageSquare } from 'lucide-react';
-import { ChatBubble } from '../../ui/ChatBubble';
-import { ScrollArea } from '../../ui/scroll-area';
+import { ChatBubble, ScrollArea } from '@/components/ui';
 
 interface ChatWindowProps {
     title: string;

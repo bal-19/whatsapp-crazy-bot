@@ -1,5 +1,5 @@
 import type { MessageDirection, MessageStatus } from '@whatsapp-bot/shared';
-import { cn, formatDate } from '../../lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 
 interface ChatBubbleProps {
     direction: MessageDirection;

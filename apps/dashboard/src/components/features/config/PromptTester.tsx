@@ -1,6 +1,6 @@
 import { Send } from 'lucide-react';
 import { useState } from 'react';
-import { Button, Input, Label } from '../../ui';
+import { Button, Input, Label } from '@/components/ui';
 
 interface PromptTesterProps {
     reply: string | null;

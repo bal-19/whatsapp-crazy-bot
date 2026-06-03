@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Search } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, Input } from '../components/ui';
-import { useLogStore } from '../stores/logStore';
-import { cn, formatDate } from '../lib/utils';
+import { Card, CardContent, CardHeader, CardTitle, Input } from '@/components/ui';
+import { useLogStore } from '@/stores/logStore';
+import { cn, formatDate } from '@/lib/utils';
 
 export function LogsPage() {
     const { logs, loadLogs } = useLogStore();

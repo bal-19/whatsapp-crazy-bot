@@ -1,6 +1,6 @@
 import { BarChart3, LayoutDashboard, MessageSquare, Settings2, Terminal } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
-import { cn } from '../../lib/utils';
+import { cn } from '@/lib/utils';
 
 const items = [
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },

@@ -2,8 +2,8 @@ import { Outlet } from 'react-router-dom';
 import { useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
-import { useBotStore } from '../../stores/botStore';
-import { socket } from '../../lib/socket';
+import { useBotStore } from '@/stores/botStore';
+import { socket } from '@/lib/socket';
 
 export function AppShell() {
     const { loadStatus, loadAnalytics } = useBotStore();

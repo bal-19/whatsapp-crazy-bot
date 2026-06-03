@@ -1,6 +1,6 @@
 import type { BotStatus } from '@whatsapp-bot/shared';
 import { Badge } from './badge';
-import { cn } from '../../lib/utils';
+import { cn } from '@/lib/utils';
 
 interface StatusBadgeProps {
     status: BotStatus;

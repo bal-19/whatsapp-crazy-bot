@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
-import { ConfigForm } from '../components/features/config/ConfigForm';
-import { PromptTester } from '../components/features/config/PromptTester';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui';
-import { useConfigStore } from '../stores/configStore';
-import { useToast } from '../components/ui/use-toast';
+import { ConfigForm } from '@/components/features/config/ConfigForm';
+import { PromptTester } from '@/components/features/config/PromptTester';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
+import { useConfigStore } from '@/stores/configStore';
+import { useToast } from '@/components/ui/use-toast';
 
 export function ConfigPage() {
     const {

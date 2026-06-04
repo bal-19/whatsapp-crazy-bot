@@ -41,6 +41,16 @@ Ini sudah cukup untuk:
 - kirim gambar hasil AI eksternal
 - kirim poster/quote card
 
+## Aturan Kompatibilitas
+
+Agar tidak bentrok dengan fitur lain:
+
+- reply type harus menjadi abstraction tunggal untuk text dan media
+- `contact_id` tidak boleh dipakai sebagai target kirim; gunakan `deliveryJid` dari conversation scope
+- semua reply multimodal harus bisa dicatat di audit log dengan format seragam
+- image analysis harus mengembalikan reply melalui abstraction ini, bukan jalur kirim terpisah
+- fallback error text tetap harus memakai jalur reply type yang sama
+
 ## Desain Response yang Disarankan
 
 Alih-alih `generateBotReply()` hanya return string, lebih fleksibel jika return object seperti:
@@ -48,7 +58,14 @@ Alih-alih `generateBotReply()` hanya return string, lebih fleksibel jika return 
 ```ts
 type BotReply =
   | { type: "text"; text: string }
-  | { type: "image"; imageUrl?: string; imageBuffer?: Buffer; caption?: string };
+  | {
+      type: "image";
+      imageUrl?: string;
+      imageBuffer?: Buffer;
+      caption?: string;
+      mimeType?: string;
+      auditMeta?: Record<string, unknown>;
+    };
 ```
 
 Dengan begitu `BotManager.sendAndLog()` bisa memutuskan payload WhatsApp yang tepat.
@@ -71,11 +88,14 @@ Kemungkinan perlu file baru:
 
 ```text
 Pesan user masuk
+  -> resolve conversation scope
   -> generateBotReply()
   -> hasil reply bertipe text atau image
-  -> BotManager memilih format sendMessage()
+  -> BotManager memilih format sendMessage() berdasarkan reply type
+  -> kirim ke deliveryJid
   -> kirim ke WhatsApp
   -> simpan metadata outbound message ke database
+  -> catat metadata reply ke audit log
 ```
 
 ## Contoh Use Case
@@ -94,6 +114,9 @@ Jika ingin rapi, outbound message sebaiknya bisa menyimpan metadata tambahan:
 - `media_url`
 - `mime_type`
 - `caption`
+- `delivery_jid`
+- `group_jid`
+- `participant_jid`
 
 Kalau schema sekarang belum mendukung, versi awal bisa tetap menyimpan caption/body dulu sambil menambah metadata belakangan.
 
@@ -109,15 +132,19 @@ Kalau schema sekarang belum mendukung, versi awal bisa tetap menyimpan caption/b
 Urutan implementasi yang disarankan:
 
 1. refactor `sendAndLog()` agar mendukung union reply type
-2. pertahankan jalur text lama agar backward compatible
-3. tambah jalur kirim image dari URL atau buffer
-4. tambah logging metadata outbound
-5. baru hubungkan dengan image analysis atau image generation
+2. sambungkan ke conversation scope supaya `deliveryJid` terpisah dari `contactId`
+3. pertahankan jalur text lama agar backward compatible
+4. tambah jalur kirim image dari URL atau buffer
+5. tambah logging metadata outbound
+6. catat `reply_type` dan metadata media ke audit log
+7. baru hubungkan dengan image analysis atau image generation
 
 ## Dependensi Fitur
 
 Balasan multimodal adalah fondasi untuk dua fitur lain:
 
+- group member scoped conversations
+- audit log
 - analisis gambar/meme
 - generate gambar AI
 

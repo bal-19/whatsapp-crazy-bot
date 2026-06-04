@@ -37,6 +37,16 @@ Yang disarankan untuk versi awal:
 - memory dipakai sebagai context tambahan saat generate reply
 - sediakan command reset memory per user
 
+## Aturan Kompatibilitas
+
+Agar tidak merusak fitur lain, personal memory V1 harus mengikuti aturan ini:
+
+- key memory mengikuti `contact_id` hasil conversation scope
+- untuk chat grup, memory bersifat `per grup per member`, bukan global lintas grup
+- memory tidak boleh dipakai untuk menentukan tujuan kirim reply
+- memory yang dipakai ke prompt harus ikut tercatat ringkas di audit log
+- memory extractor tidak boleh membaca binary media mentah
+
 ## Non-Goal V1
 
 - tidak perlu memory semantik yang kompleks
@@ -91,10 +101,19 @@ Contoh isi:
 - `preferred_name` -> `Bima`
 - `favorite_topics` -> `anime, game`
 
+V1 disarankan menambah metadata:
+
+- `scope_type`
+- `group_jid` nullable
+- `participant_jid` nullable
+
+Metadata ini membantu jika nanti dashboard atau audit log perlu menampilkan asal memory dengan jelas.
+
 ## Flow Runtime yang Disarankan
 
 ```text
 Pesan user masuk
+  -> resolve conversation scope
   -> sanitizeInput()
   -> shouldBotRespond()
   -> ambil personal memory dari database
@@ -133,13 +152,16 @@ Hal yang sebaiknya dihindari:
 - bot bisa terdengar creepy jika mengingat terlalu banyak
 - memory salah simpan bisa bikin persona terasa aneh
 - perlu batasan agar tidak menyimpan data sensitif
+- memory bisa tercampur jika implementasi tidak mengikuti scoped conversation key
 
 ## Saran Implementasi
 
 Urutan implementasi yang aman:
 
-1. buat tabel `contact_memories`
-2. simpan hanya `preferred_name` dan `favorite_topics`
-3. tampilkan memory itu di prompt
-4. tambah command reset memory
-5. baru perluas ke preferensi lain jika hasilnya bagus
+1. implementasikan conversation scope terlebih dulu
+2. buat tabel `contact_memories`
+3. simpan hanya `preferred_name` dan `favorite_topics`
+4. tampilkan memory itu di prompt
+5. catat ringkasan memory ke audit log
+6. tambah command reset memory
+7. baru perluas ke preferensi lain jika hasilnya bagus

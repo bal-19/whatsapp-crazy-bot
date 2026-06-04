@@ -58,6 +58,16 @@ Mode jawaban bisa dibuat:
 - `roast`: roasting gambar secara ringan
 - `meme-explain`: jelaskan kenapa meme lucu
 
+## Aturan Kompatibilitas
+
+Agar tidak merusak fondasi fitur lain:
+
+- image analysis harus memakai conversation scope yang sama dengan text chat
+- image analysis tidak boleh membuat jalur history terpisah sendiri
+- hasil akhirnya harus dikembalikan lewat reply type abstraction milik multimodal replies
+- metadata gambar yang dipakai harus dicatat ringkas di audit log
+- jika fitur personal memory aktif, memory yang dipakai tetap mengikuti `contactId` scoped
+
 ## Non-Goal V1
 
 - belum perlu edit gambar
@@ -85,13 +95,17 @@ Kemungkinan perlu file baru:
 ```text
 User kirim gambar + caption
   -> handleMessage()
+  -> resolve conversation scope
   -> deteksi imageMessage
   -> download/decode media dari WhatsApp
   -> ubah ke format yang diterima model
+  -> ambil history dan personal memory berdasarkan contactId scoped
   -> gabungkan caption user + instruksi persona
   -> kirim ke model multimodal
   -> proses output teks
-  -> kirim balasan ke WhatsApp
+  -> bentuk reply type
+  -> kirim balasan ke deliveryJid WhatsApp
+  -> catat media summary ke audit log
 ```
 
 ## Kebutuhan Teknis
@@ -102,6 +116,8 @@ Hal yang dibutuhkan agar fitur ini jalan:
 - helper untuk konversi media ke inline data atau part model
 - model/provider yang mendukung input image
 - fallback jika media gagal diproses
+- integrasi dengan reply type abstraction
+- integrasi dengan audit log
 
 ## Trigger UX yang Disarankan
 
@@ -131,7 +147,10 @@ Tambahan fallback yang mungkin dibutuhkan:
 
 Urutan paling aman:
 
-1. dukung gambar masuk dengan caption
-2. tambah jalur khusus untuk image analysis
-3. hasil tetap berupa teks
-4. baru setelah stabil, tambahkan mode caption/roast/meme explain
+1. implementasikan conversation scope lebih dulu
+2. implementasikan reply type abstraction untuk multimodal replies
+3. tambahkan audit log minimum untuk media flow
+4. dukung gambar masuk dengan caption
+5. tambah jalur khusus untuk image analysis
+6. hasil tetap berupa teks
+7. baru setelah stabil, tambahkan mode caption/roast/meme explain

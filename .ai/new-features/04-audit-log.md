@@ -47,6 +47,17 @@ Versi awal yang realistis:
 - simpan metadata penting, bukan isi mentah berlebihan
 - bisa dilihat untuk debugging dari dashboard atau query database
 
+## Aturan Kompatibilitas
+
+Agar bisa menjelaskan interaksi antar fitur, audit log V1 harus menganggap hal berikut sebagai first-class metadata:
+
+- conversation scope
+- reply type
+- memory usage summary
+- multimodal processing summary
+
+Dengan begitu audit log tidak tertinggal saat fitur baru ditambahkan.
+
 ## Non-Goal V1
 
 - belum perlu replay percakapan penuh
@@ -59,6 +70,10 @@ Audit log sebaiknya merekam:
 
 - `message_id`
 - `contact_id`
+- `delivery_jid`
+- `group_jid`
+- `participant_jid`
+- `scope_type`
 - `bot_config_snapshot`
 - `intent_result`
 - `should_respond_result`
@@ -68,6 +83,7 @@ Audit log sebaiknya merekam:
 - `ai_model`
 - `latency_ms`
 - `reply_type`
+- `media_summary`
 - `error_category`
 - `created_at`
 
@@ -88,9 +104,11 @@ Saran saya:
 ```text
 Pesan masuk
   -> buat audit context
+  -> simpan conversation scope
   -> sanitize input
   -> simpan hasil intent + shouldRespond
   -> jika lanjut ke AI, simpan memory summary dan model
+  -> jika jalur multimodal dipakai, simpan media summary
   -> setelah reply dibuat, simpan latency + output summary
   -> jika gagal, simpan error classification
 ```
@@ -129,6 +147,7 @@ Kemungkinan file baru:
 
 Audit log akan sangat membantu untuk:
 
+- group member scoped conversations
 - personal memory
 - image analysis
 - multimodal replies
@@ -157,7 +176,8 @@ Urutan implementasi yang aman:
 
 1. definisikan schema audit minimum
 2. buat helper `auditLogService`
-3. tambahkan audit context per inbound message
-4. log tahapan utama di `bot-manager.ts` dan `ai-service.ts`
-5. tambahkan metadata untuk memory, multimodal, dan error classification
-6. baru expose ke dashboard jika memang dibutuhkan
+3. sinkronkan schema dengan conversation scope dan reply type abstraction
+4. tambahkan audit context per inbound message
+5. log tahapan utama di `bot-manager.ts` dan `ai-service.ts`
+6. tambahkan metadata untuk memory, multimodal, dan error classification
+7. baru expose ke dashboard jika memang dibutuhkan

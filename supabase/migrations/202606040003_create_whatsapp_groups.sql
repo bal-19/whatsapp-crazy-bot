@@ -9,20 +9,22 @@ create table if not exists public.whatsapp_groups (
 create index if not exists whatsapp_groups_group_jid_idx
   on public.whatsapp_groups (group_jid);
 
-create or replace view public.conversation_summaries as
+drop view if exists public.conversation_summaries;
+
+create view public.conversation_summaries as
 select
   c.whatsapp_jid as contact_id,
   c.display_name as contact_name,
   wg.display_name as group_name,
-  coalesce(latest.body, '') as last_message,
-  coalesce(latest.created_at, c.updated_at) as last_message_at,
-  count(m.id) as message_count,
-  avg(case when m.direction = 'outbound' then m.latency_ms end) as avg_response_time_ms
+  latest.body as last_message,
+  latest.created_at as last_message_at,
+  count(m.id)::int as message_count,
+  round(avg(case when m.direction = 'outbound' and m.latency_ms is not null then m.latency_ms end))::int as avg_response_time_ms
 from public.contacts c
 left join public.whatsapp_groups wg
   on wg.group_jid = split_part(c.whatsapp_jid, '::', 1)
   and position('::' in c.whatsapp_jid) > 0
-left join lateral (
+join lateral (
   select body, created_at
   from public.messages
   where contact_id = c.id

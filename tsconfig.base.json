@@ -14,9 +14,8 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "baseUrl": ".",
     "paths": {
-      "@whatsapp-bot/shared": ["packages/shared/src/index.ts"]
+      "@whatsapp-bot/shared": ["packages/shared/dist/index.d.ts"]
     }
   }
 }

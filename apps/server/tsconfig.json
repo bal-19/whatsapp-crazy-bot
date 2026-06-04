@@ -8,7 +8,7 @@
     "moduleResolution": "NodeNext",
     "module": "NodeNext",
     "paths": {
-      "@whatsapp-bot/shared": ["../../packages/shared/src/index.ts"]
+      "@whatsapp-bot/shared": ["../../packages/shared/dist/index.d.ts"]
     }
   },
   "include": ["src"]

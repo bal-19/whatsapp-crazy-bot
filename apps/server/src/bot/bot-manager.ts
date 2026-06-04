@@ -281,6 +281,13 @@ export class BotManager {
         if (intent === "reset") {
             memory.clearSession(scope.contactId);
             await appDb.clearConversation(scope.contactId);
+            const resetInbound = await appDb.insertMessage({
+                id: messageId,
+                contact_id: scope.contactId,
+                direction: "inbound",
+                body: text,
+            });
+            emitNewMessage(scope.contactId, resetInbound);
             await this.sendAndLog(
                 scope,
                 createTextReply(ERROR_MESSAGES.reset),

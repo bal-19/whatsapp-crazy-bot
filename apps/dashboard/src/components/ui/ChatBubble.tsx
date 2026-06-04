@@ -6,9 +6,20 @@ interface ChatBubbleProps {
     content: string;
     timestamp: string;
     status?: MessageStatus;
+    senderLabel?: string | null;
+    quotedAuthor?: string | null;
+    quotedContent?: string | null;
 }
 
-export function ChatBubble({ direction, content, timestamp, status }: ChatBubbleProps) {
+export function ChatBubble({
+    direction,
+    content,
+    timestamp,
+    status,
+    senderLabel,
+    quotedAuthor,
+    quotedContent
+}: ChatBubbleProps) {
     const outbound = direction === 'outbound';
     return (
         <div className={cn('flex gap-2', outbound ? 'justify-end' : 'justify-start')}>
@@ -20,6 +31,24 @@ export function ChatBubble({ direction, content, timestamp, status }: ChatBubble
                         : 'border border-white/60 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 text-card-foreground dark:text-slate-100 shadow-sm'
                 )}
             >
+                {senderLabel ? (
+                    <p className={cn('mb-1 text-[11px] font-bold', outbound ? 'text-emerald-50/90' : 'text-emerald-700 dark:text-emerald-300')}>
+                        {senderLabel}
+                    </p>
+                ) : null}
+                {quotedContent ? (
+                    <div
+                        className={cn(
+                            'mb-2 rounded-xl border-l-4 px-3 py-2 text-xs leading-relaxed',
+                            outbound
+                                ? 'border-emerald-100/90 bg-white/15 text-emerald-50/95'
+                                : 'border-emerald-500 bg-emerald-50/80 text-slate-700 dark:bg-emerald-950/40 dark:text-slate-200'
+                        )}
+                    >
+                        {quotedAuthor ? <p className="mb-0.5 font-bold">{quotedAuthor}</p> : null}
+                        <p className="line-clamp-2 whitespace-pre-wrap break-words opacity-90">{quotedContent}</p>
+                    </div>
+                ) : null}
                 <p className="whitespace-pre-wrap break-words">{content}</p>
                 <p className={cn('mt-1.5 text-xs font-medium', outbound ? 'opacity-75' : 'text-muted-foreground/80 dark:text-slate-400')}>
                     {formatDate(timestamp)}

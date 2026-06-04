@@ -1,33 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 132 33% 97%;
+    --foreground: 155 28% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 155 28% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 142.1 76.2% 36.3%;
-    --primary-foreground: 355.7 100% 97.3%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
+    --popover-foreground: 155 28% 12%;
+    --primary: 154 62% 34%;
+    --primary-foreground: 60 9% 98%;
+    --secondary: 150 24% 92%;
+    --secondary-foreground: 155 28% 16%;
+    --muted: 144 18% 93%;
+    --muted-foreground: 156 12% 38%;
+    --accent: 44 100% 94%;
+    --accent-foreground: 28 65% 22%;
+    --destructive: 0 72% 55%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 142.1 76.2% 36.3%;
-    --radius: 0.5rem;
-    
-    color: #1e293b;
-    background: #f8fafc;
-    font-family: Inter, system-ui, sans-serif;
+    --border: 150 19% 85%;
+    --input: 150 19% 85%;
+    --ring: 154 62% 34%;
+    --radius: 1rem;
+
+    color: hsl(var(--foreground));
+    background:
+      radial-gradient(circle at top left, rgba(244, 208, 63, 0.25), transparent 28%),
+      radial-gradient(circle at top right, rgba(16, 185, 129, 0.18), transparent 30%),
+      linear-gradient(180deg, #f5fbf7 0%, #eef6f2 100%);
+    font-family: 'Manrope', 'Segoe UI', sans-serif;
   }
 
   .dark {
@@ -59,9 +64,65 @@
   }
   body {
     @apply bg-background text-foreground;
+    min-height: 100vh;
+    background-attachment: fixed;
+    font-family: 'Manrope', 'Segoe UI', sans-serif;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: 'Space Grotesk', 'Manrope', sans-serif;
+    letter-spacing: -0.03em;
+  }
+
+  ::selection {
+    background: rgba(22, 163, 74, 0.18);
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply border border-white/60 bg-white/85 shadow-sm backdrop-blur-xl;
+  }
+
+  .mesh-card {
+    background-image:
+      radial-gradient(circle at top left, rgba(255, 255, 255, 0.8), transparent 36%),
+      linear-gradient(135deg, rgba(248, 253, 250, 0.95), rgba(255, 255, 255, 0.95));
+  }
+
+  .soft-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(21, 128, 61, 0.25) transparent;
+  }
+
+  .soft-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .soft-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(21, 128, 61, 0.2);
+    border-radius: 9999px;
+  }
+
+  .soft-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
   }
 }
 
 .focus-ring {
   @apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
+}
+
+/* Typography improvements */
+p, span, div {
+  letter-spacing: -0.01em;
+}
+
+/* Smooth transitions */
+* {
+  @apply transition-colors duration-150;
 }

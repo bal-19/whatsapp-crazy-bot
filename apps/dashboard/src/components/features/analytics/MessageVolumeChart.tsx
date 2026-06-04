@@ -24,7 +24,14 @@ export function MessageVolumeChart({ messagesToday }: MessageVolumeChartProps) {
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
           <XAxis dataKey="day" stroke="#64748b" fontSize={12} />
           <YAxis stroke="#64748b" fontSize={12} />
-          <Tooltip />
+          <Tooltip
+            contentStyle={{
+              borderRadius: '16px',
+              border: '1px solid rgba(209, 250, 229, 0.95)',
+              boxShadow: '0 18px 45px -24px rgba(18, 57, 42, 0.35)',
+              backgroundColor: 'rgba(255,255,255,0.96)'
+            }}
+          />
           <Area type="monotone" dataKey="messages" stroke="#16a34a" fill="url(#messageVolume)" strokeWidth={2} />
         </AreaChart>
       </ResponsiveContainer>

@@ -20,11 +20,17 @@ export function AppShell() {
     }, [loadAnalytics, loadStatus]);
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="relative min-h-screen overflow-hidden bg-background">
+            <div className="pointer-events-none absolute inset-0">
+                <div className="absolute left-[-10rem] top-[-6rem] h-72 w-72 rounded-full bg-emerald-300/15 blur-3xl" />
+                <div className="absolute right-[-8rem] top-24 h-80 w-80 rounded-full bg-amber-200/15 blur-3xl" />
+                <div className="absolute bottom-[-10rem] left-1/3 h-96 w-96 rounded-full bg-lime-200/10 blur-3xl" />
+            </div>
+
             <Topbar />
-            <div className="flex">
+            <div className="relative mx-auto flex w-full max-w-screen-2xl flex-col gap-4 px-4 pb-6 pt-4 sm:gap-5 sm:px-5 sm:pb-7 sm:pt-5 lg:flex-row lg:gap-5 lg:px-5 lg:pb-8 lg:pt-5">
                 <Sidebar />
-                <main className="h-[calc(100vh-64px)] flex-1 overflow-auto p-6">
+                <main className="soft-scrollbar min-h-0 flex-1 overflow-auto rounded-2xl border border-white/50 bg-white/85 p-5 shadow-sm backdrop-blur-sm sm:p-6 lg:h-[calc(100vh-132px)] lg:rounded-2xl lg:p-6">
                     <Outlet />
                 </main>
             </div>

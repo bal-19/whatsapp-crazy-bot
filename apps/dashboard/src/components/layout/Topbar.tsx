@@ -14,25 +14,44 @@ export function Topbar() {
     }
 
     return (
-        <header className="flex h-16 items-center justify-between border-b bg-background px-6">
-            <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary font-bold text-primary-foreground">WA</div>
-                <div>
-                    <p className="text-sm font-semibold text-foreground">WhatsApp AI Bot</p>
-                    <p className="text-xs text-muted-foreground">Uptime {formatDuration(uptimeSeconds)}</p>
+        <header className="sticky top-0 z-30 border-b border-white/30 bg-white/85 backdrop-blur-xl transition-all">
+            <div className="mx-auto flex h-20 w-full max-w-screen-2xl items-center justify-between gap-4 px-4 sm:px-5 lg:px-5">
+                <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-sm font-bold text-white shadow-sm">
+                        WA
+                    </div>
+                    <div className="min-w-0">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Operations</p>
+                        <p className="truncate text-base font-bold text-foreground">WhatsApp AI Bot</p>
+                    </div>
                 </div>
-            </div>
-            <div className="flex items-center gap-3">
-                <StatusBadge status={status} />
-                <Button variant="outline" size="icon" aria-label="Restart bot" onClick={() => void restartBot()}>
-                    <RefreshCw className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" aria-label="Buka konfigurasi" onClick={() => navigate('/config')}>
-                    <Settings className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" aria-label="Keluar" onClick={handleLogout}>
-                    <LogOut className="h-4 w-4" />
-                </Button>
+
+                <div className="hidden items-center gap-4 rounded-xl border border-white/60 bg-white/70 px-4 py-2 shadow-sm xl:flex">
+                    <StatusBadge status={status} />
+                    <div className="h-8 w-px bg-border/40" />
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">Uptime</p>
+                        <p className="text-sm font-semibold text-foreground">{formatDuration(uptimeSeconds)}</p>
+                    </div>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                    <Button variant="outline" size="icon" aria-label="Restart bot" onClick={() => void restartBot()} className="rounded-lg h-10 w-10 bg-white/80">
+                        <RefreshCw className="h-4 w-4" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Buka konfigurasi"
+                        onClick={() => navigate('/config')}
+                        className="rounded-lg h-10 w-10"
+                    >
+                        <Settings className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" aria-label="Keluar" onClick={handleLogout} className="rounded-lg h-10 w-10">
+                        <LogOut className="h-4 w-4" />
+                    </Button>
+                </div>
             </div>
         </header>
     );

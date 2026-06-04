@@ -1,5 +1,6 @@
 import { QrCode, RefreshCcw, Smartphone } from 'lucide-react';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui';
+import { cn } from '@/lib/utils';
 import type { BotStatus } from '@whatsapp-bot/shared';
 
 interface WhatsAppQrCardProps {
@@ -13,52 +14,54 @@ export function WhatsAppQrCard({ status, qrCode, isResettingAuth, onResetAuth }:
     const showQr = status !== 'connected' && Boolean(qrCode);
 
     return (
-        <Card className="overflow-hidden border-emerald-200/70 bg-gradient-to-br from-emerald-50 via-white to-lime-50">
-            <CardHeader className="pb-4">
-                <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-12 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
-                        {showQr ? <QrCode className="h-5 w-5" /> : <Smartphone className="h-5 w-5" />}
+        <Card className="mesh-card overflow-hidden border-emerald-200/60">
+            <CardHeader className="pb-5">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="flex items-start gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-sm shrink-0 mt-0.5">
+                            {showQr ? <QrCode className="h-5 w-5" /> : <Smartphone className="h-5 w-5" />}
+                        </div>
+                        <div>
+                            <CardTitle className="text-base">WhatsApp Pairing</CardTitle>
+                            <CardDescription className="mt-1">
+                                {showQr
+                                    ? 'Scan QR dari WhatsApp di ponsel untuk menyambungkan bot.'
+                                    : status === 'connected'
+                                        ? 'Bot sudah tersambung. Tidak perlu scan ulang.'
+                                        : 'Menunggu QR dari server. Coba restart bot jika belum muncul.'}
+                            </CardDescription>
+                        </div>
                     </div>
-                    <div>
-                        <CardTitle className="text-lg">WhatsApp Pairing</CardTitle>
-                        <CardDescription>
-                            {showQr
-                                ? 'Scan QR ini dari WhatsApp di ponsel untuk menyambungkan bot.'
-                                : status === 'connected'
-                                    ? 'Bot sudah tersambung. QR disembunyikan biar tidak dipakai ulang.'
-                                    : 'Menunggu QR dari server. Kalau belum muncul, coba restart bot.'}
-                        </CardDescription>
-                    </div>
+                    <Button variant="outline" size="sm" onClick={onResetAuth} disabled={isResettingAuth} className="rounded-lg shrink-0">
+                        <RefreshCcw className={cn('h-3.5 w-3.5', isResettingAuth && 'animate-spin')} />
+                        {isResettingAuth ? 'Resetting...' : 'Reset Auth'}
+                    </Button>
                 </div>
-                <Button variant="outline" size="sm" onClick={onResetAuth} disabled={isResettingAuth}>
-                    <RefreshCcw className={isResettingAuth ? 'animate-spin' : ''} />
-                    {isResettingAuth ? 'Resetting...' : 'Reset Auth'}
-                </Button>
             </CardHeader>
 
             <CardContent>
-                <div className="rounded-3xl border border-emerald-100 bg-white/90 p-5 shadow-sm">
+                <div className="rounded-xl border border-emerald-100/60 bg-white/70 p-5 shadow-sm">
                     {showQr ? (
-                        <div className="mx-auto max-w-[320px] space-y-4">
+                        <div className="mx-auto max-w-xs space-y-4">
                             <img
                                 src={qrCode!}
                                 alt="WhatsApp QR code"
-                                className="w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
+                                className="w-full rounded-lg border border-slate-200 bg-white p-2 shadow-sm"
                             />
-                            <p className="text-center text-xs leading-5 text-slate-500">
-                                Buka WhatsApp di ponsel, masuk ke Perangkat Tertaut, lalu scan QR ini.
+                            <p className="text-center text-xs leading-relaxed text-slate-600">
+                                Buka WhatsApp → Perangkat Tertaut → scan QR code ini
                             </p>
                         </div>
                     ) : (
-                        <div className="flex min-h-[360px] flex-col items-center justify-center rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/60 px-6 text-center">
-                            <Smartphone className="mb-4 h-10 w-10 text-emerald-600" />
+                        <div className="flex min-h-[300px] flex-col items-center justify-center rounded-lg border border-dashed border-emerald-200 bg-emerald-50/40 px-6 text-center">
+                            <Smartphone className="mb-3 h-8 w-8 text-emerald-600/60" />
                             <p className="text-sm font-semibold text-slate-800">
                                 {status === 'connected' ? 'WhatsApp sudah aktif' : 'QR belum tersedia'}
                             </p>
-                            <p className="mt-2 max-w-xs text-sm leading-6 text-slate-500">
+                            <p className="mt-2 max-w-xs text-xs leading-relaxed text-slate-600">
                                 {status === 'connected'
-                                    ? 'Session sudah tersimpan di database, jadi normalnya tidak perlu scan ulang.'
-                                    : 'Begitu server menerima QR pairing baru, tampilannya akan muncul otomatis di sini.'}
+                                    ? 'Session tersimpan. Normalnya tidak perlu scan ulang.'
+                                    : 'QR akan muncul otomatis begitu tersedia dari server.'}
                             </p>
                         </div>
                     )}

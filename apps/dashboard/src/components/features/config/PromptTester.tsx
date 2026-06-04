@@ -12,29 +12,30 @@ export function PromptTester({ reply, isTesting, onTest }: PromptTesterProps) {
     const [message, setMessage] = useState('pagi');
 
     return (
-        <div className="space-y-4">
-            <div className="rounded-lg border bg-muted/50 p-4">
+        <div className="space-y-4 sm:space-y-5">
+            <div className="rounded-[1.5rem] border bg-muted/50 p-4 sm:p-5">
                 <Label className="text-xs font-semibold uppercase">Preview Respons</Label>
                 <div className="mt-4 space-y-3 text-sm">
                     <div>
                         <p className="font-semibold text-foreground">User</p>
-                        <p className="mt-1 rounded-lg bg-background p-3 text-foreground shadow-sm border">{message}</p>
+                        <p className="mt-1 rounded-[1.25rem] border bg-background p-3 text-foreground shadow-sm">{message}</p>
                     </div>
                     <div>
                         <p className="font-semibold text-foreground">Bot</p>
-                        <p className="mt-1 min-h-24 whitespace-pre-wrap rounded-lg bg-primary p-3 text-primary-foreground shadow-sm">
+                        <p className="mt-1 min-h-24 whitespace-pre-wrap rounded-[1.25rem] bg-primary p-3 text-primary-foreground shadow-sm">
                             {isTesting ? 'Lagi mikir...' : reply ?? 'Klik test untuk melihat respons.'}
                         </p>
                     </div>
                 </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
                 <Input
+                    className="rounded-2xl bg-white/90"
                     value={message}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMessage(e.target.value)}
                     placeholder="Ketik pesan test..."
                 />
-                <Button onClick={() => onTest(message)} disabled={isTesting || message.trim().length === 0}>
+                <Button className="w-full rounded-2xl sm:w-auto" onClick={() => onTest(message)} disabled={isTesting || message.trim().length === 0}>
                     <Send className="h-4 w-4" />
                     Test
                 </Button>

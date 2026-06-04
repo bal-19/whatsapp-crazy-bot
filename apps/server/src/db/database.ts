@@ -105,6 +105,18 @@ interface ConversationSummaryRow {
   avg_response_time_ms: number | null;
 }
 
+function hasDisplayNameValue(value?: string | null): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function resolveDisplayName(current?: string | null, incoming?: string | null): string | null {
+  if (hasDisplayNameValue(current)) {
+    return current;
+  }
+
+  return hasDisplayNameValue(incoming) ? incoming.trim() : current ?? null;
+}
+
 interface DatabaseAdapter {
   getConfig(): Promise<BotConfig>;
   updateConfig(patch: Partial<BotConfig>): Promise<BotConfig>;
@@ -302,7 +314,7 @@ class InMemoryDatabase implements DatabaseAdapter {
     this.contacts.set(id, {
       id,
       whatsapp_jid: id,
-      display_name: name ?? existing?.display_name ?? null,
+      display_name: resolveDisplayName(existing?.display_name, name),
       is_blocked: existing?.is_blocked ?? false,
       created_at: existing?.created_at ?? now,
       updated_at: now,
@@ -868,16 +880,33 @@ class SupabaseDatabase implements DatabaseAdapter {
   }
 
   private async ensureContact(jid: string, name?: string | null): Promise<ContactRow> {
-    const payload = {
-      whatsapp_jid: jid,
-      display_name: name ?? null,
-      last_seen_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
+    const now = new Date().toISOString();
+    const existing = await this.findContactByJid(jid);
+
+    if (!existing) {
+      const { data, error } = await supabaseAdmin!
+        .from('contacts')
+        .insert({
+          whatsapp_jid: jid,
+          display_name: hasDisplayNameValue(name) ? name.trim() : null,
+          last_seen_at: now,
+          updated_at: now
+        })
+        .select('*')
+        .single();
+
+      assertSupabaseSuccess(error, 'Gagal menyimpan contact ke Supabase.');
+      return data as ContactRow;
+    }
 
     const { data, error } = await supabaseAdmin!
       .from('contacts')
-      .upsert(payload, { onConflict: 'whatsapp_jid' })
+      .update({
+        display_name: resolveDisplayName(existing.display_name, name),
+        last_seen_at: now,
+        updated_at: now
+      })
+      .eq('id', existing.id)
       .select('*')
       .single();
 

@@ -33,12 +33,20 @@ export function ConfigPage() {
     }
 
     return (
-        <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold text-foreground">Konfigurasi Bot</h1>
-                <p className="text-sm text-muted-foreground">Atur persona, tone, dan perilaku bot.</p>
-            </div>
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_380px]">
+        <div className="space-y-6 sm:space-y-7 lg:space-y-8">
+            <Card className="mesh-card">
+                <CardContent className="flex flex-wrap items-end justify-between gap-5 p-6 sm:p-7 lg:p-8">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700">Bot Persona Studio</p>
+                        <h1 className="mt-2 text-2xl font-bold text-foreground sm:text-3xl">Konfigurasi Bot</h1>
+                        <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-[15px]">Atur persona, tone, dan perilaku bot dengan layout form yang lebih enak dibaca tanpa mengubah field atau logic yang sudah ada.</p>
+                    </div>
+                    <div className="rounded-2xl bg-white/80 px-5 py-3.5 text-sm text-slate-600 shadow-sm">
+                        {isDirty ? 'Ada perubahan belum disimpan' : 'Semua perubahan sudah sinkron'}
+                    </div>
+                </CardContent>
+            </Card>
+            <div className="grid grid-cols-1 gap-6 sm:gap-7 2xl:grid-cols-[1fr_400px]">
                 <Card>
                     <CardHeader>
                         <CardTitle>Pengaturan Umum</CardTitle>

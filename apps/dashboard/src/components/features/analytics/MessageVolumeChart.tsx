@@ -1,16 +1,11 @@
+import type { AnalyticsSummary } from '@whatsapp-bot/shared';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 interface MessageVolumeChartProps {
-  messagesToday: number;
+  data: AnalyticsSummary['daily_message_volume'];
 }
 
-export function MessageVolumeChart({ messagesToday }: MessageVolumeChartProps) {
-  const data = Array.from({ length: 7 }, (_, index) => {
-    const day = `H-${6 - index}`;
-    const value = Math.max(0, Math.round((messagesToday / 7) * (0.65 + index * 0.08)));
-    return { day: index === 6 ? 'Hari ini' : day, messages: value };
-  });
-
+export function MessageVolumeChart({ data }: MessageVolumeChartProps) {
   return (
     <div className="h-72 w-full">
       <ResponsiveContainer>
@@ -22,9 +17,16 @@ export function MessageVolumeChart({ messagesToday }: MessageVolumeChartProps) {
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-          <XAxis dataKey="day" stroke="#64748b" fontSize={12} />
+          <XAxis dataKey="label" stroke="#64748b" fontSize={12} />
           <YAxis stroke="#64748b" fontSize={12} />
-          <Tooltip />
+          <Tooltip
+            contentStyle={{
+              borderRadius: '16px',
+              border: '1px solid rgba(209, 250, 229, 0.95)',
+              boxShadow: '0 18px 45px -24px rgba(18, 57, 42, 0.35)',
+              backgroundColor: 'rgba(255,255,255,0.96)'
+            }}
+          />
           <Area type="monotone" dataKey="messages" stroke="#16a34a" fill="url(#messageVolume)" strokeWidth={2} />
         </AreaChart>
       </ResponsiveContainer>

@@ -84,6 +84,11 @@ export interface AnalyticsSummary {
     active_contacts_today: number;
     avg_response_time_ms: number;
     gemini_errors_today: number;
+    daily_message_volume: {
+        date: string;
+        label: string;
+        messages: number;
+    }[];
 }
 
 export interface SystemLog {

@@ -13,25 +13,63 @@ const items = [
 
 export function Sidebar() {
     return (
-        <aside className="h-[calc(100vh-64px)] w-16 shrink-0 border-r bg-slate-950 p-3 text-white lg:w-60 dark:bg-slate-950">
-            <nav className="space-y-1">
+        <aside className="w-full shrink-0 rounded-2xl border border-white/60 bg-white/85 p-4 text-slate-900 backdrop-blur-sm sm:p-5 lg:h-[calc(100vh-132px)] lg:w-64 lg:rounded-2xl lg:p-5">
+            <div className="hidden rounded-xl border border-emerald-100/70 bg-emerald-50/50 p-4 lg:block">
+                <div className="flex items-center gap-2.5">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-950 text-xs font-bold text-white shadow-sm">
+                        WA
+                    </div>
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Control</p>
+                        <h2 className="text-base font-bold text-slate-900">WhatsApp AI</h2>
+                    </div>
+                </div>
+                <p className="mt-3 text-xs leading-relaxed text-slate-600">
+                    Dashboard untuk memantau percakapan, analytics, dan konfigurasi bot.
+                </p>
+            </div>
+
+            <nav className="soft-scrollbar -mx-1 mt-4 flex gap-2 overflow-x-auto px-1 lg:mx-0 lg:mt-5 lg:block lg:space-y-2 lg:overflow-visible lg:px-0">
                 {items.map((item) => (
                     <NavLink
                         key={item.to}
                         to={item.to}
                         end={item.to === '/'}
-                        className={({ isActive }) =>
-                            cn(
-                                'flex items-center justify-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-white lg:justify-start',
-                                isActive && 'bg-slate-800 text-white'
-                            )
-                        }
                     >
-                        <item.icon className="h-4 w-4 shrink-0" />
-                        <span className="hidden lg:inline">{item.label}</span>
+                        {({ isActive }) => (
+                            <div
+                                className={cn(
+                                    'group flex min-w-[80px] shrink-0 flex-col items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-center text-xs font-medium transition-all sm:min-w-[90px] sm:text-xs lg:min-w-0 lg:flex-row lg:justify-start lg:gap-2.5 lg:px-3 lg:py-2.5',
+                                    isActive
+                                        ? 'bg-slate-950 text-white shadow-sm'
+                                        : 'text-slate-600 hover:bg-emerald-50/70 hover:text-slate-900'
+                                )}
+                            >
+                                <div
+                                    className={cn(
+                                        'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors',
+                                        isActive
+                                            ? 'bg-white/20 text-white'
+                                            : 'bg-slate-100 text-slate-500 group-hover:bg-emerald-100/70 group-hover:text-emerald-700'
+                                    )}
+                                >
+                                    <item.icon className="h-4 w-4 shrink-0" />
+                                </div>
+                                <div className="min-w-0">
+                                    <span className="block truncate text-xs">{item.label}</span>
+                                </div>
+                            </div>
+                        )}
                     </NavLink>
                 ))}
             </nav>
+
+            <div className="mt-4 hidden rounded-lg border border-emerald-100 bg-emerald-50/50 p-4 lg:block lg:mt-auto">
+                <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Note</p>
+                <p className="mt-2 text-xs leading-relaxed text-slate-600">
+                    Visual dashboard yang clean dan modern dengan fokus pada usability.
+                </p>
+            </div>
         </aside>
     );
 }

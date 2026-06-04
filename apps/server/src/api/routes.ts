@@ -7,6 +7,7 @@ import type {
     LoginRequest,
     TestPromptRequest,
     UpdateContactRequest,
+    UpsertWhatsAppGroupRequest,
 } from "@whatsapp-bot/shared";
 import { appDb } from "../db/database.js";
 import { requireAuth, signToken, verifyLogin } from "../auth/jwt.js";
@@ -135,6 +136,33 @@ export function createApiRouter(): Router {
         asyncHandler(async (req, res) => {
             await appDb.deleteContact(req.params.contactId);
             res.status(204).send();
+        }),
+    );
+
+    router.get(
+        "/groups",
+        asyncHandler(async (_req, res) => {
+            res.json({ data: await appDb.listGroups() });
+        }),
+    );
+
+    router.post(
+        "/groups",
+        asyncHandler(async (req, res) => {
+            const body = upsertGroupSchema.safeParse(req.body);
+            if (!body.success) {
+                res.status(400).json({
+                    message: "Invalid group payload",
+                    issues: body.error.issues,
+                });
+                return;
+            }
+
+            const group = await appDb.upsertGroup(
+                body.data.group_jid,
+                body.data.display_name ?? null,
+            );
+            res.status(201).json(group);
         }),
     );
 
@@ -304,6 +332,17 @@ const updateContactSchema = z
     .refine((value) => Object.keys(value).length > 0, {
         message: "At least one contact field is required",
     }) satisfies z.ZodType<UpdateContactRequest>;
+
+const upsertGroupSchema = z.object({
+    group_jid: z
+        .string()
+        .min(3)
+        .max(120)
+        .refine((value) => value.endsWith("@g.us"), {
+            message: "Group JID harus berakhiran @g.us",
+        }),
+    display_name: z.string().max(120).nullable().optional(),
+}) satisfies z.ZodType<UpsertWhatsAppGroupRequest>;
 
 const configSchema = z.object({
     system_prompt: z.string().min(10).max(4000),

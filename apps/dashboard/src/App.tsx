@@ -4,6 +4,7 @@ import { LoginPage } from '@/pages/LoginPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { ConversationsPage } from '@/pages/ConversationsPage';
 import { ContactsPage } from '@/pages/ContactsPage';
+import { GroupsPage } from '@/pages/GroupsPage';
 import { ConfigPage } from '@/pages/ConfigPage';
 import { AnalyticsPage } from '@/pages/AnalyticsPage';
 import { LogsPage } from '@/pages/LogsPage';
@@ -18,6 +19,7 @@ export function App() {
                     <Route path="/" element={<DashboardPage />} />
                     <Route path="/conversations" element={<ConversationsPage />} />
                     <Route path="/contacts" element={<ContactsPage />} />
+                    <Route path="/groups" element={<GroupsPage />} />
                     <Route path="/config" element={<ConfigPage />} />
                     <Route path="/analytics" element={<AnalyticsPage />} />
                     <Route path="/logs" element={<LogsPage />} />

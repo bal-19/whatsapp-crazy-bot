@@ -233,7 +233,7 @@ export class BotManager {
         }
 
         if (scope.groupJid) {
-            await this.refreshGroupName(scope.groupJid, scopeMeta);
+            await this.trackGroupJid(scope.groupJid, scopeMeta);
         }
 
         // Cek apakah bot harus merespons (mention detection)
@@ -444,15 +444,14 @@ export class BotManager {
         return outbound;
     }
 
-    private async refreshGroupName(
+    private async trackGroupJid(
         groupJid: string,
         scopeMeta: Record<string, unknown>,
     ): Promise<void> {
         try {
-            const metadata = await this.sock?.groupMetadata(groupJid);
-            await appDb.upsertGroup(groupJid, metadata?.subject ?? null);
+            await appDb.upsertGroup(groupJid, null);
         } catch (error) {
-            logService.write("warn", "group_name_refresh_failed", {
+            logService.write("warn", "group_jid_track_failed", {
                 ...scopeMeta,
                 groupJid,
                 errorMessage: getErrorMessage(error),

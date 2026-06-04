@@ -14,6 +14,7 @@ import type {
     SystemLog,
     ToneStyle,
     UpdateContactRequest,
+    WhatsAppGroup,
 } from "@whatsapp-bot/shared";
 import { env } from "../config/env.js";
 import { supabaseAdmin } from "../lib/supabase.js";
@@ -159,7 +160,8 @@ interface DatabaseAdapter {
     ): Promise<Contact | null>;
     deleteContact(contactId: string): Promise<void>;
     upsertContact(id: string, name?: string | null): Promise<void>;
-    upsertGroup(groupJid: string, name?: string | null): Promise<void>;
+    listGroups(): Promise<WhatsAppGroup[]>;
+    upsertGroup(groupJid: string, name?: string | null): Promise<WhatsAppGroup>;
     insertMessage(input: {
         id: string;
         contact_id: string;
@@ -238,7 +240,11 @@ class AppDatabase {
         return this.adapter.upsertContact(id, name);
     }
 
-    upsertGroup(groupJid: string, name?: string | null): Promise<void> {
+    listGroups(): Promise<WhatsAppGroup[]> {
+        return this.adapter.listGroups();
+    }
+
+    upsertGroup(groupJid: string, name?: string | null): Promise<WhatsAppGroup> {
         return this.adapter.upsertGroup(groupJid, name);
     }
 
@@ -430,16 +436,31 @@ class InMemoryDatabase implements DatabaseAdapter {
         });
     }
 
-    async upsertGroup(groupJid: string, name?: string | null): Promise<void> {
+    async listGroups(): Promise<WhatsAppGroup[]> {
+        return [...this.groups.values()]
+            .sort(
+                (a, b) =>
+                    Date.parse(b.updated_at) - Date.parse(a.updated_at) ||
+                    Date.parse(b.created_at) - Date.parse(a.created_at),
+            )
+            .map(mapWhatsAppGroupRow);
+    }
+
+    async upsertGroup(
+        groupJid: string,
+        name?: string | null,
+    ): Promise<WhatsAppGroup> {
         const existing = this.groups.get(groupJid);
         const now = new Date().toISOString();
-        this.groups.set(groupJid, {
+        const row: WhatsAppGroupRow = {
             id: existing?.id ?? crypto.randomUUID(),
             group_jid: groupJid,
             display_name: resolveDisplayName(existing?.display_name, name),
             created_at: existing?.created_at ?? now,
             updated_at: now,
-        });
+        };
+        this.groups.set(groupJid, row);
+        return mapWhatsAppGroupRow(row);
     }
 
     async insertMessage(input: {
@@ -867,9 +888,26 @@ class SupabaseDatabase implements DatabaseAdapter {
         await this.ensureContact(id, name);
     }
 
-    async upsertGroup(groupJid: string, name?: string | null): Promise<void> {
+    async listGroups(): Promise<WhatsAppGroup[]> {
         await this.ready;
-        await this.ensureGroup(groupJid, name);
+        const { data, error } = await supabaseAdmin!
+            .from("whatsapp_groups")
+            .select("*")
+            .order("updated_at", { ascending: false });
+
+        assertSupabaseSuccess(
+            error,
+            "Gagal mengambil daftar group WhatsApp dari Supabase.",
+        );
+        return ((data ?? []) as WhatsAppGroupRow[]).map(mapWhatsAppGroupRow);
+    }
+
+    async upsertGroup(
+        groupJid: string,
+        name?: string | null,
+    ): Promise<WhatsAppGroup> {
+        await this.ready;
+        return mapWhatsAppGroupRow(await this.ensureGroup(groupJid, name));
     }
 
     async insertMessage(input: {
@@ -1435,6 +1473,15 @@ function mapContactRow(row: ContactRow): Contact {
         created_at: row.created_at,
         updated_at: row.updated_at,
         last_seen: row.last_seen_at,
+    };
+}
+
+function mapWhatsAppGroupRow(row: WhatsAppGroupRow): WhatsAppGroup {
+    return {
+        group_jid: row.group_jid,
+        display_name: row.display_name,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
     };
 }
 

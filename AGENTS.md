@@ -155,6 +155,9 @@ Aturan:
 - balasan WhatsApp tetap dikirim ke `deliveryJid`, yaitu JID personal atau JID grup asli
 - nama member disimpan di `contacts.display_name` untuk scoped `contact_id`
 - nama grup disimpan di table `whatsapp_groups` dengan key `group_jid`
+- saat pesan grup masuk, `group_jid` otomatis di-track dengan `display_name=null` bila belum ada
+- tracking otomatis tidak menimpa `display_name` grup yang sudah diisi manual
+- metadata grup bisa disimpan manual dari dashboard lewat halaman `/groups` dan API `/api/v1/groups`
 
 Dampak:
 
@@ -350,7 +353,7 @@ Event penting yang muncul di kode:
 - `audit_multimodal_requested`
 - `audit_reply_sent`
 - `image_analysis_media_error`
-- `group_name_refresh_failed`
+- `group_jid_track_failed`
 - `gemini_error`
 
 Metadata `audit_reply_sent` sekarang juga dapat memuat:

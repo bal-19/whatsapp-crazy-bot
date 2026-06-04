@@ -29,6 +29,13 @@ export interface Contact {
     last_seen: string | null;
 }
 
+export interface WhatsAppGroup {
+    group_jid: string;
+    display_name: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
 export interface CreateContactRequest {
     id: string;
     name?: string | null;
@@ -41,6 +48,11 @@ export interface UpdateContactRequest {
     name?: string | null;
     is_blocked?: boolean;
     last_seen?: string | null;
+}
+
+export interface UpsertWhatsAppGroupRequest {
+    group_jid: string;
+    display_name?: string | null;
 }
 
 export interface Message {

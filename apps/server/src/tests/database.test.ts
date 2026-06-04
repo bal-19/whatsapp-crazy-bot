@@ -58,6 +58,24 @@ describe('appDb group metadata', () => {
     assert.ok(summary);
     assert.equal(summary.contact_name, 'Bima');
     assert.equal(summary.group_name, 'Grup Keluarga');
+
+    const groups = await appDb.listGroups();
+    const group = groups.find((item) => item.group_jid === groupJid);
+    assert.ok(group);
+    assert.equal(group.display_name, 'Grup Keluarga');
+  });
+
+  it('tracks group jid with null display_name without clearing an existing name', async () => {
+    const groupJid = `120363-preserve-${Date.now()}@g.us`;
+
+    const tracked = await appDb.upsertGroup(groupJid, null);
+    assert.equal(tracked.group_jid, groupJid);
+    assert.equal(tracked.display_name, null);
+
+    await appDb.upsertGroup(groupJid, 'Nama Manual');
+    const preserved = await appDb.upsertGroup(groupJid, null);
+
+    assert.equal(preserved.display_name, 'Nama Manual');
   });
 });
 

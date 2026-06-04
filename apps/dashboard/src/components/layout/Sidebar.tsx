@@ -1,10 +1,11 @@
-import { BarChart3, LayoutDashboard, MessageSquare, Settings2, Terminal } from 'lucide-react';
+import { BarChart3, ContactRound, LayoutDashboard, MessageSquare, Settings2, Terminal } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
 const items = [
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/conversations', label: 'Percakapan', icon: MessageSquare },
+    { to: '/contacts', label: 'Contacts', icon: ContactRound },
     { to: '/config', label: 'Konfigurasi', icon: Settings2 },
     { to: '/analytics', label: 'Analytics', icon: BarChart3 },
     { to: '/logs', label: 'Log Sistem', icon: Terminal }

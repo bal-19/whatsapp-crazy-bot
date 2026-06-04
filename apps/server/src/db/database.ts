@@ -2,15 +2,18 @@ import crypto from 'node:crypto';
 import type {
   AnalyticsSummary,
   BotConfig,
+  Contact,
   ConversationDetail,
   ConversationSummary,
+  CreateContactRequest,
   LogLevel,
   Message,
   MessageDirection,
   MessageStatus,
   PaginatedResponse,
   SystemLog,
-  ToneStyle
+  ToneStyle,
+  UpdateContactRequest
 } from '@whatsapp-bot/shared';
 import { env } from '../config/env.js';
 import { supabaseAdmin } from '../lib/supabase.js';
@@ -105,6 +108,11 @@ interface ConversationSummaryRow {
 interface DatabaseAdapter {
   getConfig(): Promise<BotConfig>;
   updateConfig(patch: Partial<BotConfig>): Promise<BotConfig>;
+  listContacts(): Promise<Contact[]>;
+  getContact(contactId: string): Promise<Contact | null>;
+  createContact(input: CreateContactRequest): Promise<Contact>;
+  updateContact(contactId: string, patch: UpdateContactRequest): Promise<Contact | null>;
+  deleteContact(contactId: string): Promise<void>;
   upsertContact(id: string, name?: string | null): Promise<void>;
   insertMessage(input: {
     id: string;
@@ -136,6 +144,26 @@ class AppDatabase {
 
   updateConfig(patch: Partial<BotConfig>): Promise<BotConfig> {
     return this.adapter.updateConfig(patch);
+  }
+
+  listContacts(): Promise<Contact[]> {
+    return this.adapter.listContacts();
+  }
+
+  getContact(contactId: string): Promise<Contact | null> {
+    return this.adapter.getContact(contactId);
+  }
+
+  createContact(input: CreateContactRequest): Promise<Contact> {
+    return this.adapter.createContact(input);
+  }
+
+  updateContact(contactId: string, patch: UpdateContactRequest): Promise<Contact | null> {
+    return this.adapter.updateContact(contactId, patch);
+  }
+
+  deleteContact(contactId: string): Promise<void> {
+    return this.adapter.deleteContact(contactId);
   }
 
   upsertContact(id: string, name?: string | null): Promise<void> {
@@ -197,6 +225,75 @@ class InMemoryDatabase implements DatabaseAdapter {
   async updateConfig(patch: Partial<BotConfig>): Promise<BotConfig> {
     this.config = { ...this.config, ...patch };
     return this.getConfig();
+  }
+
+  async listContacts(): Promise<Contact[]> {
+    return [...this.contacts.values()]
+      .sort((a, b) => {
+        const aTime = a.last_seen_at ? Date.parse(a.last_seen_at) : 0;
+        const bTime = b.last_seen_at ? Date.parse(b.last_seen_at) : 0;
+        return bTime - aTime || Date.parse(b.created_at) - Date.parse(a.created_at);
+      })
+      .map(mapContactRow);
+  }
+
+  async getContact(contactId: string): Promise<Contact | null> {
+    const row = this.contacts.get(contactId);
+    return row ? mapContactRow(row) : null;
+  }
+
+  async createContact(input: CreateContactRequest): Promise<Contact> {
+    const now = new Date().toISOString();
+    if (this.contacts.has(input.id)) {
+      throw new Error('Contact dengan WhatsApp JID tersebut sudah ada.');
+    }
+
+    const row: ContactRow = {
+      id: crypto.randomUUID(),
+      whatsapp_jid: input.id,
+      display_name: input.name ?? null,
+      is_blocked: input.is_blocked ?? false,
+      created_at: now,
+      updated_at: now,
+      last_seen_at: input.last_seen ?? null
+    };
+
+    this.contacts.set(input.id, row);
+    return mapContactRow(row);
+  }
+
+  async updateContact(contactId: string, patch: UpdateContactRequest): Promise<Contact | null> {
+    const current = this.contacts.get(contactId);
+    if (!current) return null;
+
+    const nextId = patch.id?.trim() || current.whatsapp_jid;
+    if (nextId !== contactId && this.contacts.has(nextId)) {
+      throw new Error('Contact dengan WhatsApp JID tersebut sudah ada.');
+    }
+
+    const updated: ContactRow = {
+      ...current,
+      whatsapp_jid: nextId,
+      display_name: patch.name !== undefined ? patch.name : current.display_name,
+      is_blocked: patch.is_blocked ?? current.is_blocked,
+      last_seen_at: patch.last_seen !== undefined ? patch.last_seen : current.last_seen_at,
+      updated_at: new Date().toISOString()
+    };
+
+    if (nextId !== contactId) {
+      this.contacts.delete(contactId);
+      this.messages = this.messages.map((message) =>
+        message.contact_id === contactId ? { ...message, contact_id: nextId } : message
+      );
+    }
+
+    this.contacts.set(nextId, updated);
+    return mapContactRow(updated);
+  }
+
+  async deleteContact(contactId: string): Promise<void> {
+    this.contacts.delete(contactId);
+    this.messages = this.messages.filter((message) => message.contact_id !== contactId);
   }
 
   async upsertContact(id: string, name?: string | null): Promise<void> {
@@ -427,6 +524,81 @@ class SupabaseDatabase implements DatabaseAdapter {
 
     assertSupabaseSuccess(error, 'Gagal mengupdate bot settings di Supabase.');
     return mapConfigRow(data as BotSettingsRow);
+  }
+
+  async listContacts(): Promise<Contact[]> {
+    await this.ready;
+    const { data, error } = await supabaseAdmin!
+      .from('contacts')
+      .select('*')
+      .order('last_seen_at', { ascending: false, nullsFirst: false })
+      .order('created_at', { ascending: false });
+
+    assertSupabaseSuccess(error, 'Gagal mengambil daftar contact dari Supabase.');
+    return ((data ?? []) as ContactRow[]).map(mapContactRow);
+  }
+
+  async getContact(contactId: string): Promise<Contact | null> {
+    await this.ready;
+    const row = await this.findContactByJid(contactId);
+    return row ? mapContactRow(row) : null;
+  }
+
+  async createContact(input: CreateContactRequest): Promise<Contact> {
+    await this.ready;
+
+    const payload = {
+      whatsapp_jid: input.id,
+      display_name: input.name ?? null,
+      is_blocked: input.is_blocked ?? false,
+      last_seen_at: input.last_seen ?? null
+    };
+
+    const { data, error } = await supabaseAdmin!
+      .from('contacts')
+      .insert(payload)
+      .select('*')
+      .single();
+
+    assertSupabaseSuccess(error, 'Gagal membuat contact di Supabase.');
+    return mapContactRow(data as ContactRow);
+  }
+
+  async updateContact(contactId: string, patch: UpdateContactRequest): Promise<Contact | null> {
+    await this.ready;
+    const current = await this.findContactByJid(contactId);
+    if (!current) return null;
+
+    const payload = {
+      whatsapp_jid: patch.id?.trim() || current.whatsapp_jid,
+      display_name: patch.name !== undefined ? patch.name : current.display_name,
+      is_blocked: patch.is_blocked ?? current.is_blocked,
+      last_seen_at: patch.last_seen !== undefined ? patch.last_seen : current.last_seen_at,
+      updated_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabaseAdmin!
+      .from('contacts')
+      .update(payload)
+      .eq('id', current.id)
+      .select('*')
+      .single();
+
+    assertSupabaseSuccess(error, 'Gagal mengupdate contact di Supabase.');
+    return mapContactRow(data as ContactRow);
+  }
+
+  async deleteContact(contactId: string): Promise<void> {
+    await this.ready;
+    const current = await this.findContactByJid(contactId);
+    if (!current) return;
+
+    const { error } = await supabaseAdmin!
+      .from('contacts')
+      .delete()
+      .eq('id', current.id);
+
+    assertSupabaseSuccess(error, 'Gagal menghapus contact dari Supabase.');
   }
 
   async upsertContact(id: string, name?: string | null): Promise<void> {
@@ -721,6 +893,17 @@ function mapConfigRow(row: BotSettingsRow): BotConfig {
     is_active: row.is_active ?? DEFAULT_CONFIG.is_active,
     ignore_groups: row.ignore_groups ?? DEFAULT_CONFIG.ignore_groups,
     tone_style: row.tone_style ?? DEFAULT_CONFIG.tone_style
+  };
+}
+
+function mapContactRow(row: ContactRow): Contact {
+  return {
+    id: row.whatsapp_jid,
+    name: row.display_name,
+    is_blocked: row.is_blocked,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    last_seen: row.last_seen_at
   };
 }
 

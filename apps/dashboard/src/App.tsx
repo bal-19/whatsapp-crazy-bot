@@ -3,6 +3,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { LoginPage } from '@/pages/LoginPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { ConversationsPage } from '@/pages/ConversationsPage';
+import { ContactsPage } from '@/pages/ContactsPage';
 import { ConfigPage } from '@/pages/ConfigPage';
 import { AnalyticsPage } from '@/pages/AnalyticsPage';
 import { LogsPage } from '@/pages/LogsPage';
@@ -16,6 +17,7 @@ export function App() {
                 <Route element={<ProtectedLayout />}>
                     <Route path="/" element={<DashboardPage />} />
                     <Route path="/conversations" element={<ConversationsPage />} />
+                    <Route path="/contacts" element={<ContactsPage />} />
                     <Route path="/config" element={<ConfigPage />} />
                     <Route path="/analytics" element={<AnalyticsPage />} />
                     <Route path="/logs" element={<LogsPage />} />

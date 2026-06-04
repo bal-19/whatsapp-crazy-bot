@@ -48,7 +48,7 @@ export function ConversationList({ conversations, activeContactId, onSelect }: C
                     >
                         <div className="flex items-center justify-between gap-3">
                             <p className="truncate text-sm font-semibold text-foreground">
-                                {extractPhoneFromJid(conversation.contact_id)} {conversation.contact_name ? `(${conversation.contact_name})` : ''}
+                                {conversation.contact_name ? conversation.contact_name : extractPhoneFromJid(conversation.contact_id)}
                             </p>
                             <span className="shrink-0 text-[11px] text-muted-foreground">{formatDate(conversation.last_message_at)}</span>
                         </div>

@@ -3,8 +3,10 @@ import { Router } from "express";
 import { z } from "zod";
 import type {
     BotConfig,
+    CreateContactRequest,
     LoginRequest,
     TestPromptRequest,
+    UpdateContactRequest,
 } from "@whatsapp-bot/shared";
 import { appDb } from "../db/database.js";
 import { requireAuth, signToken, verifyLogin } from "../auth/jwt.js";
@@ -60,6 +62,74 @@ export function createApiRouter(): Router {
                 queue_size: getQueueSize(),
                 qr_code: botManager.getQrCode(),
             });
+        }),
+    );
+
+    router.get(
+        "/contacts",
+        asyncHandler(async (_req, res) => {
+            res.json({ data: await appDb.listContacts() });
+        }),
+    );
+
+    router.get(
+        "/contacts/:contactId",
+        asyncHandler(async (req, res) => {
+            const detail = await appDb.getContact(req.params.contactId);
+            if (!detail) {
+                res.status(404).json({ message: "Contact not found" });
+                return;
+            }
+            res.json(detail);
+        }),
+    );
+
+    router.post(
+        "/contacts",
+        asyncHandler(async (req, res) => {
+            const body = createContactSchema.safeParse(req.body);
+            if (!body.success) {
+                res.status(400).json({
+                    message: "Invalid contact payload",
+                    issues: body.error.issues,
+                });
+                return;
+            }
+
+            res.status(201).json(await appDb.createContact(body.data));
+        }),
+    );
+
+    router.put(
+        "/contacts/:contactId",
+        asyncHandler(async (req, res) => {
+            const body = updateContactSchema.safeParse(req.body);
+            if (!body.success) {
+                res.status(400).json({
+                    message: "Invalid contact payload",
+                    issues: body.error.issues,
+                });
+                return;
+            }
+
+            const updated = await appDb.updateContact(
+                req.params.contactId,
+                body.data,
+            );
+            if (!updated) {
+                res.status(404).json({ message: "Contact not found" });
+                return;
+            }
+
+            res.json(updated);
+        }),
+    );
+
+    router.delete(
+        "/contacts/:contactId",
+        asyncHandler(async (req, res) => {
+            await appDb.deleteContact(req.params.contactId);
+            res.status(204).send();
         }),
     );
 
@@ -186,6 +256,24 @@ const loginSchema = z.object({
     username: z.string().min(1),
     password: z.string().min(1),
 }) satisfies z.ZodType<LoginRequest>;
+
+const createContactSchema = z.object({
+    id: z.string().min(3).max(120),
+    name: z.string().max(120).nullable().optional(),
+    is_blocked: z.boolean().optional(),
+    last_seen: z.string().datetime({ offset: true }).nullable().optional(),
+}) satisfies z.ZodType<CreateContactRequest>;
+
+const updateContactSchema = z
+    .object({
+        id: z.string().min(3).max(120).optional(),
+        name: z.string().max(120).nullable().optional(),
+        is_blocked: z.boolean().optional(),
+        last_seen: z.string().datetime({ offset: true }).nullable().optional(),
+    })
+    .refine((value) => Object.keys(value).length > 0, {
+        message: "At least one contact field is required",
+    }) satisfies z.ZodType<UpdateContactRequest>;
 
 const configSchema = z.object({
     system_prompt: z.string().min(10).max(4000),

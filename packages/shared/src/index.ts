@@ -25,7 +25,22 @@ export interface Contact {
     name: string | null;
     is_blocked: boolean;
     created_at: string;
+    updated_at?: string;
     last_seen: string | null;
+}
+
+export interface CreateContactRequest {
+    id: string;
+    name?: string | null;
+    is_blocked?: boolean;
+    last_seen?: string | null;
+}
+
+export interface UpdateContactRequest {
+    id?: string;
+    name?: string | null;
+    is_blocked?: boolean;
+    last_seen?: string | null;
 }
 
 export interface Message {

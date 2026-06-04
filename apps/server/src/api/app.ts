@@ -1,8 +1,8 @@
 import express from "express";
 import cors from "cors";
-import rateLimit from "express-rate-limit";
 import { env } from "../config/env.js";
 import { createApiRouter } from "./routes.js";
+import { apiRateLimiter } from "./rate-limiters.js";
 
 export function createApp(): express.Express {
     const app = express();
@@ -14,14 +14,7 @@ export function createApp(): express.Express {
         }),
     );
     app.use(express.json({ limit: "1mb" }));
-    app.use(
-        rateLimit({
-            windowMs: 60_000,
-            limit: 100,
-            standardHeaders: true,
-            legacyHeaders: false,
-        }),
-    );
+    app.use(apiRateLimiter);
 
     app.get("/health", (_req, res) => {
         res.json({ ok: true });

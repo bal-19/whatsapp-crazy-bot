@@ -77,4 +77,25 @@ describe('api', () => {
     await request(baseUrl).get('/api/v1/conversations').set('Authorization', `Bearer ${token}`).expect(200);
     await request(baseUrl).get('/api/v1/logs').set('Authorization', `Bearer ${token}`).expect(200);
   });
+
+  it('rate limits repeated failed login attempts', async (t) => {
+    if (!baseUrl) {
+      t.skip(`HTTP listener unavailable: ${listenError?.message ?? 'unknown error'}`);
+      return;
+    }
+
+    for (let i = 0; i < 5; i++) {
+      await request(baseUrl)
+        .post('/api/v1/auth/login')
+        .send({ username: 'rate-limit-admin', password: 'wrong-password' })
+        .expect(401);
+    }
+
+    const limited = await request(baseUrl)
+      .post('/api/v1/auth/login')
+      .send({ username: 'rate-limit-admin', password: 'wrong-password' })
+      .expect(429);
+
+    assert.equal(limited.body.message, 'Terlalu banyak percobaan login. Coba lagi nanti ya.');
+  });
 });

@@ -276,6 +276,7 @@ Perilaku V1:
 ## 9. Rate Limiting dan Queue
 
 Implementasi ada di [apps/server/src/ai/rate-limiter.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/ai/rate-limiter.ts:1).
+Rate limiting HTTP API ada di [apps/server/src/api/rate-limiters.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/api/rate-limiters.ts:1).
 
 Aturan runtime:
 
@@ -289,6 +290,15 @@ Tambahan:
 - queue dianggap overload jika size > 50
 - jika overload, user langsung menerima `ERROR_MESSAGES.queue_full`
 - ada counter request harian untuk observability
+
+Aturan HTTP API:
+
+- global API limiter default `100` request per `60` detik
+- login limiter default `5` percobaan gagal per `15` menit per kombinasi IP dan username
+- endpoint `/api/v1/test-prompt` default `10` request per `60` detik per IP
+- respons limit memakai HTTP `429` dengan JSON `message` dan `retry_after_seconds`
+- event limit dicatat ke log sebagai `api_rate_limit_exceeded`, `auth_rate_limit_exceeded`, atau `test_prompt_rate_limit_exceeded`
+- nilai dapat dikonfigurasi lewat env `API_RATE_LIMIT_*`, `AUTH_RATE_LIMIT_*`, dan `TEST_PROMPT_RATE_LIMIT_*`
 
 ## 10. Error Recovery
 

@@ -17,12 +17,14 @@ import { generateBotReply } from "../ai/ai-service.js";
 import { getReplyPreview } from "../ai/reply-types.js";
 import { memory } from "../ai/conversation-memory.js";
 import { emitAnalyticsUpdate } from "../realtime/socket.js";
+import { authRateLimiter, testPromptRateLimiter } from "./rate-limiters.js";
 
 export function createApiRouter(): Router {
     const router = Router();
 
     router.post(
         "/auth/login",
+        authRateLimiter,
         asyncHandler(async (req, res) => {
             const body = loginSchema.safeParse(req.body);
             if (!body.success) {
@@ -189,6 +191,7 @@ export function createApiRouter(): Router {
 
     router.post(
         "/test-prompt",
+        testPromptRateLimiter,
         asyncHandler(async (req, res) => {
             const body = testPromptSchema.safeParse(req.body);
             if (!body.success) {

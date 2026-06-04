@@ -1,11 +1,13 @@
 import {
     GoogleGenerativeAI,
-    HarmBlockThreshold,
-    HarmCategory,
     type Content,
     type GenerativeModel,
 } from "@google/generative-ai";
 import { env } from "../config/env.js";
+import {
+    buildMultimodalPrompt,
+    detectImageAnalysisMode,
+} from "./multimodal-service.js";
 
 let model: GenerativeModel | null = null;
 
@@ -55,5 +57,36 @@ export async function generateGeminiReply(
     });
 
     const result = await chat.sendMessage(message);
+    return result.response.text();
+}
+
+export async function generateGeminiImageReply(input: {
+    systemPrompt: string;
+    history: Content[];
+    message: string;
+    image: {
+        buffer: Buffer;
+        mimeType: string;
+    };
+}): Promise<string> {
+    model ??= createGeminiModel();
+
+    const prompt = buildMultimodalPrompt({
+        systemPrompt: input.systemPrompt,
+        history: input.history,
+        message: input.message,
+        mode: detectImageAnalysisMode(input.message),
+    });
+
+    const result = await model.generateContent([
+        prompt,
+        {
+            inlineData: {
+                data: input.image.buffer.toString("base64"),
+                mimeType: input.image.mimeType,
+            },
+        },
+    ]);
+
     return result.response.text();
 }

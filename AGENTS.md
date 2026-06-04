@@ -15,6 +15,7 @@ WhatsApp Message
   -> resolveConversationScope()
   -> sanitizeInput()
   -> shouldBotRespond() + detectIntent()
+  -> parse inbound image (jika ada)
   -> generateBotReply()
   -> Gemini queue
   -> processGeminiOutput()
@@ -50,6 +51,7 @@ Catatan penting:
 
 - Dokumen lama menyebut threshold safety Gemini di-code; implementasi sekarang tidak memasang safety settings eksplisit.
 - Jika `GEMINI_API_KEY` tidak ada, pemanggilan Gemini akan gagal.
+- Untuk analisis gambar, model yang sama dipakai melalui `generateContent()` dengan image `inlineData`.
 
 ## 3. Arsitektur Prompt Saat Ini
 
@@ -117,6 +119,11 @@ Bot mengabaikan:
 - grup jika `ignore_groups=true`
 - semua pesan jika `is_active=false`
 
+Catatan media:
+
+- image tanpa caption belum diproses di V1
+- image dengan caption tetap mengikuti rules mention yang sama seperti text message
+
 ### 5.3 Intent khusus
 
 Intent yang benar-benar ada:
@@ -129,6 +136,7 @@ Tidak ada `off_hours` aktif di implementasi sekarang.
 
 Trigger:
 
+- `/list`, `/help`, atau `/commands` -> kirim daftar command yang tersedia
 - `/reset` atau `mulai dari awal` -> clear memory + clear conversation di database untuk conversation scope aktif
 - `/resetmemory`, `/lupainaku`, atau `lupain aku` -> clear personal memory untuk conversation scope aktif
 - `bicara dengan manusia`, `hubungi admin`, `minta tolong orang` -> kirim template handoff
@@ -201,6 +209,11 @@ Aturan:
 - deteksi sederhana pola prompt injection untuk logging
 - tidak menolak injection pattern secara otomatis; tetap diteruskan ke model dengan guardrails prompt
 
+Untuk image analysis V1:
+
+- caption tetap melewati sanitizer yang sama
+- binary image tidak ikut masuk ke sanitizer
+
 ## 8. Output Processing
 
 Processor aktif di [apps/server/src/ai/output-processor.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/ai/output-processor.ts:1).
@@ -241,6 +254,23 @@ Aturan runtime:
 - image reply bisa dikirim dari `imageUrl` atau `imageBuffer`
 - preview outbound yang disimpan di database tetap memakai text utama atau caption
 - metadata media outbound disimpan ke `raw_payload`
+
+## 8.2 Analisis Gambar V1
+
+Bot sekarang punya jalur multimodal untuk `imageMessage` yang memiliki caption atau instruksi teks.
+
+Komponen:
+
+- [apps/server/src/ai/media-parser.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/ai/media-parser.ts:1)
+- [apps/server/src/ai/multimodal-service.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/ai/multimodal-service.ts:1)
+
+Perilaku V1:
+
+- bot mendownload image dari WhatsApp bila pesan berupa `imageMessage`
+- caption user dipakai sebagai instruksi analisis
+- mode analisis dasar yang ada: `describe`, `caption`, `roast`, `meme_explain`
+- hasil akhir tetap dikirim sebagai reply text
+- image yang terlalu besar akan memakai fallback error media
 
 ## 9. Rate Limiting dan Queue
 
@@ -302,7 +332,9 @@ Event penting yang muncul di kode:
 - `audit_intent_detected`
 - `audit_memory_updated`
 - `audit_memory_cleared`
+- `audit_multimodal_requested`
 - `audit_reply_sent`
+- `image_analysis_media_error`
 - `gemini_error`
 
 Metadata `audit_reply_sent` sekarang juga dapat memuat:

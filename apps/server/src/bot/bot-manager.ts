@@ -33,6 +33,8 @@ import { getReplyPreview, type BotReply } from "../ai/reply-types.js";
 import { mediaService } from "../services/mediaService.js";
 import { createTextReply } from "../ai/reply-types.js";
 import { personalMemoryService } from "../services/personalMemoryService.js";
+import { parseInboundImageAttachment } from "../ai/media-parser.js";
+import { detectImageAnalysisMode } from "../ai/multimodal-service.js";
 
 export class BotManager {
     private sock: WASocket | null = null;
@@ -303,6 +305,17 @@ export class BotManager {
             return;
         }
 
+        if (intent === "command_list") {
+            await this.sendAndLog(
+                scope,
+                createTextReply(ERROR_MESSAGES.command_list),
+                null,
+                0,
+                message,
+            );
+            return;
+        }
+
         if (intent === "handoff") {
             await this.sendAndLog(
                 scope,
@@ -328,12 +341,55 @@ export class BotManager {
             });
         }
 
+        let imageAttachment = null;
+        try {
+            imageAttachment = await parseInboundImageAttachment(this.sock, message);
+        } catch (error) {
+            const errorMessage = getErrorMessage(error);
+            logService.write("error", "image_analysis_media_error", {
+                ...scopeMeta,
+                messageId,
+                errorMessage,
+            });
+
+            const fallback =
+                errorMessage === "IMAGE_TOO_LARGE"
+                    ? ERROR_MESSAGES.media_too_large
+                    : ERROR_MESSAGES.media_unavailable;
+
+            await this.sendAndLog(
+                scope,
+                createTextReply(fallback),
+                null,
+                0,
+                message,
+            );
+            return;
+        }
+
+        if (imageAttachment) {
+            logService.write("info", "audit_multimodal_requested", {
+                ...scopeMeta,
+                messageId,
+                mediaType: "image",
+                mimeType: imageAttachment.mimeType,
+                fileLength: imageAttachment.fileLength,
+                analysisMode: detectImageAnalysisMode(sanitized.sanitized),
+            });
+        }
+
         await this.sock.sendPresenceUpdate("composing", scope.deliveryJid);
         const result = await generateBotReply({
             contactId: scope.contactId,
             contactName,
             message: sanitized.sanitized,
             config,
+            imageAttachment: imageAttachment
+                ? {
+                      buffer: imageAttachment.buffer,
+                      mimeType: imageAttachment.mimeType,
+                  }
+                : undefined,
         });
         await this.sock.sendPresenceUpdate("paused", scope.deliveryJid);
         await this.sendAndLog(

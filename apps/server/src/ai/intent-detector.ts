@@ -1,4 +1,9 @@
-export type Intent = "reset" | "handoff" | "memory_reset" | "normal";
+export type Intent =
+    | "reset"
+    | "handoff"
+    | "memory_reset"
+    | "command_list"
+    | "normal";
 
 export function detectIntent(message: string): Intent {
     const lower = message.toLowerCase().trim();
@@ -11,6 +16,10 @@ export function detectIntent(message: string): Intent {
         lower.includes("lupain aku")
     ) {
         return "memory_reset";
+    }
+
+    if (lower === "/list" || lower === "/help" || lower === "/commands") {
+        return "command_list";
     }
 
     if (

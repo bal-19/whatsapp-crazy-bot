@@ -5,7 +5,7 @@ import { env } from "../config/env.js";
 import { buildSystemPrompt } from "./prompt-builder.js";
 import { memory } from "./conversation-memory.js";
 import { processGeminiOutput } from "./output-processor.js";
-import { generateGeminiReply } from "./gemini-client.js";
+import { generateGeminiImageReply, generateGeminiReply } from "./gemini-client.js";
 import {
     geminiQueue,
     incrementDailyCounter,
@@ -22,6 +22,10 @@ export interface GenerateReplyInput {
     contactName?: string | null;
     message: string;
     config?: BotConfig;
+    imageAttachment?: {
+        buffer: Buffer;
+        mimeType: string;
+    };
 }
 
 export interface GenerateReplyResult {
@@ -59,6 +63,15 @@ export async function generateBotReply(
     try {
         const raw = await geminiQueue.add(async () => {
             incrementDailyCounter();
+            if (input.imageAttachment) {
+                return generateGeminiImageReply({
+                    systemPrompt,
+                    history: memory.getHistory(input.contactId),
+                    message: input.message,
+                    image: input.imageAttachment,
+                });
+            }
+
             return generateGeminiReply(
                 systemPrompt,
                 memory.getHistory(input.contactId),

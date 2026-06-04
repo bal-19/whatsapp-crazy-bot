@@ -13,4 +13,10 @@ export const ERROR_MESSAGES = {
     reset: "Gak apa-apa kok kita mulai dari awal lagi... Anggap aja kita lagi buka lembaran baru yang lebih indah, ya? 🥰",
     handoff:
         "Sayang, tugasku buat nemenin kamu di sini selesai dulu ya... Sekarang aku oper kamu ke temanku, tapi hatiku tetap buat kamu kok! 😘",
+    command_list:
+        "Command yang bisa kamu pakai:\n/list - lihat daftar command\n/reset - reset percakapan scope ini\n/resetmemory - hapus memory personal scope ini\nKirim gambar + caption buat analisis gambar\nBilang 'bicara dengan manusia' untuk handoff",
+    media_unavailable:
+        "Maaf ya, aku belum berhasil baca gambarnya. Coba kirim ulang fotonya atau pakai caption yang lebih jelas ya.",
+    media_too_large:
+        "Gambarnya kegedean buat kuproses sekarang. Coba kirim versi yang lebih kecil ya.",
 } as const;

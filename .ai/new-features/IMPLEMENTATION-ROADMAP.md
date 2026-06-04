@@ -172,7 +172,7 @@ Catatan kompatibilitas:
 
 ## Batch 4: Image and Meme Analysis
 
-Status: `belum diimplementasi`
+Status: `sudah diimplementasi sebagian`
 
 Fitur:
 
@@ -186,6 +186,15 @@ Target hasil:
 - bot bisa mengirim gambar + caption user ke model multimodal
 - hasil analisis dikirim sebagai reply type standar
 - audit log mencatat metadata media dan mode analisis
+
+Implementasi saat ini:
+
+- `imageMessage` dengan caption sudah bisa diproses lewat jalur multimodal
+- media image didownload dari WhatsApp lalu dikirim ke Gemini sebagai `inlineData`
+- mode analisis dasar `describe`, `caption`, `roast`, dan `meme_explain` sudah ada
+- hasil analisis tetap dikirim sebagai text reply standar
+- audit media minimum sudah dicatat lewat `audit_multimodal_requested`
+- error download atau image terlalu besar memakai fallback media
 
 Komponen utama:
 

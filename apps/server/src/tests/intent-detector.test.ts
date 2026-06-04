@@ -17,6 +17,12 @@ describe("detectIntent", () => {
         assert.equal(detectIntent("tolong lupain aku dulu"), "memory_reset");
     });
 
+    it("detects command list", () => {
+        assert.equal(detectIntent("/list"), "command_list");
+        assert.equal(detectIntent("/help"), "command_list");
+        assert.equal(detectIntent("/commands"), "command_list");
+    });
+
     it("returns normal by default", () => {
         assert.equal(detectIntent("halo"), "normal");
     });

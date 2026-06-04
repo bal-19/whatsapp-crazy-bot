@@ -51,6 +51,14 @@ Versi awal yang realistis:
 - bot mengirim gambar + prompt user ke model multimodal
 - bot membalas dengan teks hasil analisis
 
+Status implementasi saat ini:
+
+- `imageMessage` ber-caption sudah bisa masuk ke jalur multimodal
+- image didownload dari WhatsApp lalu diproses dengan Gemini `inlineData`
+- output akhir masih berupa text reply
+- mode dasar `describe`, `caption`, `roast`, dan `meme_explain` sudah tersedia
+- image tanpa caption belum diproses di V1
+
 Mode jawaban bisa dibuat:
 
 - `describe`: jelaskan isi gambar

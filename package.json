@@ -12,6 +12,9 @@
     "dev:server": "npm run dev --workspace @whatsapp-bot/server",
     "dev:dashboard": "npm run dev --workspace @whatsapp-bot/dashboard",
     "start:server": "npm run start --workspace @whatsapp-bot/server",
+    "build:shared": "npm run build --workspace @whatsapp-bot/shared",
+    "build:server": "npm run build:shared && npm run build --workspace @whatsapp-bot/server",
+    "build:dashboard": "npm run build:shared && npm run build --workspace @whatsapp-bot/dashboard",
     "build": "npm run build -w packages/shared && npm run build --workspaces --if-present",
     "test": "npm run test --workspace @whatsapp-bot/server",
     "lint": "npm run lint --workspaces"

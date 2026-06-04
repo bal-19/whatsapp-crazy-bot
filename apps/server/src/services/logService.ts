@@ -5,7 +5,13 @@ import { logger } from '../logging/logger.js';
 
 export const logService = {
   write(level: LogLevel, message: string, meta?: Record<string, unknown>): void {
-    logger[level](meta ?? {}, message);
+    if (level === 'error') {
+      logger.error(meta ?? {}, message);
+    } else if (level === 'warn') {
+      logger.warn(meta ?? {}, message);
+    } else {
+      logger.info(meta ?? {}, message);
+    }
 
     void appDb
       .addLog(level, message, meta)

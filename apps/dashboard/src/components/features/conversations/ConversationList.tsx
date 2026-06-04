@@ -15,7 +15,7 @@ export function ConversationList({ conversations, activeContactId, onSelect }: C
     const filtered = useMemo(
         () =>
             conversations.filter((conversation) =>
-                `${conversation.contact_name ?? ''} ${conversation.contact_id} ${conversation.last_message}`
+                `${conversation.contact_name ?? ''} ${conversation.group_name ?? ''} ${conversation.contact_id} ${conversation.last_message}`
                     .toLowerCase()
                     .includes(query.toLowerCase())
             ),
@@ -42,7 +42,11 @@ export function ConversationList({ conversations, activeContactId, onSelect }: C
             <div className="soft-scrollbar min-h-0 flex-1 space-y-2 overflow-auto p-3 sm:p-4">
                 {filtered.map((conversation) => {
                     const scope = parseConversationScope(conversation.contact_id);
-                    const subtitle = formatConversationSubtitle(conversation.contact_id);
+                    const subtitle = formatConversationSubtitle(
+                        conversation.contact_id,
+                        conversation.contact_name,
+                        conversation.group_name
+                    );
 
                     return (
                         <button

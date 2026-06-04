@@ -64,6 +64,14 @@ interface ContactRow {
     last_seen_at: string | null;
 }
 
+interface WhatsAppGroupRow {
+    id: string;
+    group_jid: string;
+    display_name: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
 interface MessageRow {
     id: string;
     whatsapp_message_id: string;
@@ -111,6 +119,7 @@ interface PersonalMemoryRow {
 interface ConversationSummaryRow {
     contact_id: string;
     contact_name: string | null;
+    group_name: string | null;
     last_message: string;
     last_message_at: string;
     message_count: number;
@@ -150,6 +159,7 @@ interface DatabaseAdapter {
     ): Promise<Contact | null>;
     deleteContact(contactId: string): Promise<void>;
     upsertContact(id: string, name?: string | null): Promise<void>;
+    upsertGroup(groupJid: string, name?: string | null): Promise<void>;
     insertMessage(input: {
         id: string;
         contact_id: string;
@@ -228,6 +238,10 @@ class AppDatabase {
         return this.adapter.upsertContact(id, name);
     }
 
+    upsertGroup(groupJid: string, name?: string | null): Promise<void> {
+        return this.adapter.upsertGroup(groupJid, name);
+    }
+
     insertMessage(
         input: Parameters<DatabaseAdapter["insertMessage"]>[0],
     ): Promise<Message> {
@@ -304,6 +318,7 @@ class AppDatabase {
 class InMemoryDatabase implements DatabaseAdapter {
     private config: BotConfig = { ...DEFAULT_CONFIG };
     private contacts = new Map<string, ContactRow>();
+    private groups = new Map<string, WhatsAppGroupRow>();
     private messages: MessageRow[] = [];
     private personalMemories = new Map<string, PersonalMemoryRow[]>();
     private logs: SystemLog[] = [];
@@ -415,6 +430,18 @@ class InMemoryDatabase implements DatabaseAdapter {
         });
     }
 
+    async upsertGroup(groupJid: string, name?: string | null): Promise<void> {
+        const existing = this.groups.get(groupJid);
+        const now = new Date().toISOString();
+        this.groups.set(groupJid, {
+            id: existing?.id ?? crypto.randomUUID(),
+            group_jid: groupJid,
+            display_name: resolveDisplayName(existing?.display_name, name),
+            created_at: existing?.created_at ?? now,
+            updated_at: now,
+        });
+    }
+
     async insertMessage(input: {
         id: string;
         contact_id: string;
@@ -493,6 +520,7 @@ class InMemoryDatabase implements DatabaseAdapter {
                 return {
                     contact_id: contact.whatsapp_jid,
                     contact_name: contact.display_name,
+                    group_name: this.resolveGroupName(contact.whatsapp_jid),
                     last_message: contactMessages[0]!.body,
                     last_message_at: contactMessages[0]!.created_at,
                     message_count: contactMessages.length,
@@ -608,6 +636,7 @@ class InMemoryDatabase implements DatabaseAdapter {
         );
 
         this.contacts.clear();
+        this.groups.clear();
         this.messages = [];
         this.personalMemories.clear();
 
@@ -701,6 +730,12 @@ class InMemoryDatabase implements DatabaseAdapter {
     }
 
     async close(): Promise<void> {}
+
+    private resolveGroupName(contactId: string): string | null {
+        const [groupJid, participantJid] = contactId.split("::");
+        if (!participantJid) return null;
+        return this.groups.get(groupJid)?.display_name ?? null;
+    }
 }
 
 class SupabaseDatabase implements DatabaseAdapter {
@@ -832,6 +867,11 @@ class SupabaseDatabase implements DatabaseAdapter {
         await this.ensureContact(id, name);
     }
 
+    async upsertGroup(groupJid: string, name?: string | null): Promise<void> {
+        await this.ready;
+        await this.ensureGroup(groupJid, name);
+    }
+
     async insertMessage(input: {
         id: string;
         contact_id: string;
@@ -891,6 +931,7 @@ class SupabaseDatabase implements DatabaseAdapter {
             data: ((data ?? []) as ConversationSummaryRow[]).map((row) => ({
                 contact_id: row.contact_id,
                 contact_name: row.contact_name,
+                group_name: row.group_name,
                 last_message: row.last_message,
                 last_message_at: row.last_message_at,
                 message_count: Number(row.message_count),
@@ -1339,6 +1380,40 @@ class SupabaseDatabase implements DatabaseAdapter {
 
         assertSupabaseSuccess(error, "Gagal menyimpan contact ke Supabase.");
         return data as ContactRow;
+    }
+
+    private async ensureGroup(
+        groupJid: string,
+        name?: string | null,
+    ): Promise<WhatsAppGroupRow> {
+        const now = new Date().toISOString();
+        const { data: existingData, error: existingError } = await supabaseAdmin!
+            .from("whatsapp_groups")
+            .select("*")
+            .eq("group_jid", groupJid)
+            .maybeSingle();
+
+        assertSupabaseSuccess(
+            existingError,
+            "Gagal mencari group WhatsApp di Supabase.",
+        );
+
+        const existing = (existingData as WhatsAppGroupRow | null) ?? null;
+        const payload = {
+            group_jid: groupJid,
+            display_name: resolveDisplayName(existing?.display_name, name),
+            updated_at: now,
+            ...(existing ? {} : { created_at: now }),
+        };
+
+        const { data, error } = await supabaseAdmin!
+            .from("whatsapp_groups")
+            .upsert(payload, { onConflict: "group_jid" })
+            .select("*")
+            .single();
+
+        assertSupabaseSuccess(error, "Gagal menyimpan group ke Supabase.");
+        return data as WhatsAppGroupRow;
     }
 }
 

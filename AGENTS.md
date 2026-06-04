@@ -145,6 +145,7 @@ Trigger:
 ## 5.4 Conversation Scope
 
 Conversation identity sekarang dipisahkan dari tujuan pengiriman WhatsApp.
+Nama grup disimpan terpisah sebagai metadata berdasarkan `groupJid`.
 
 Aturan:
 
@@ -152,6 +153,8 @@ Aturan:
 - chat grup memakai format `groupJid::participantJid` sebagai `contact_id`
 - jika `participantJid` tidak tersedia pada pesan grup, fallback ke `groupJid` dan log `conversation_scope_group_fallback`
 - balasan WhatsApp tetap dikirim ke `deliveryJid`, yaitu JID personal atau JID grup asli
+- nama member disimpan di `contacts.display_name` untuk scoped `contact_id`
+- nama grup disimpan di table `whatsapp_groups` dengan key `group_jid`
 
 Dampak:
 
@@ -159,6 +162,7 @@ Dampak:
 - `/reset` di grup hanya membersihkan scope member yang memicu reset
 - outbound message tetap disimpan ke `contact_id` scoped
 - dashboard conversation bisa menampilkan beberapa conversation untuk satu grup karena tiap member punya scope sendiri
+- dashboard menampilkan scoped group sebagai `Member <nama member> di grup <nama grup>` bila metadata tersedia, lalu fallback ke nomor/JID bila belum tersedia
 
 ## 6. Memory Percakapan
 
@@ -346,6 +350,7 @@ Event penting yang muncul di kode:
 - `audit_multimodal_requested`
 - `audit_reply_sent`
 - `image_analysis_media_error`
+- `group_name_refresh_failed`
 - `gemini_error`
 
 Metadata `audit_reply_sent` sekarang juga dapat memuat:

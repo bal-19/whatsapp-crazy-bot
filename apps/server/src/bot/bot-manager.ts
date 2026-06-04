@@ -232,6 +232,10 @@ export class BotManager {
             });
         }
 
+        if (scope.groupJid) {
+            await this.refreshGroupName(scope.groupJid, scopeMeta);
+        }
+
         // Cek apakah bot harus merespons (mention detection)
         if (!shouldBotRespond(text, config.bot_name)) {
             // Log bahwa pesan tidak memention bot
@@ -438,6 +442,22 @@ export class BotManager {
             outputLength: body.length,
         });
         return outbound;
+    }
+
+    private async refreshGroupName(
+        groupJid: string,
+        scopeMeta: Record<string, unknown>,
+    ): Promise<void> {
+        try {
+            const metadata = await this.sock?.groupMetadata(groupJid);
+            await appDb.upsertGroup(groupJid, metadata?.subject ?? null);
+        } catch (error) {
+            logService.write("warn", "group_name_refresh_failed", {
+                ...scopeMeta,
+                groupJid,
+                errorMessage: getErrorMessage(error),
+            });
+        }
     }
 
     private setStatus(status: BotStatus): void {

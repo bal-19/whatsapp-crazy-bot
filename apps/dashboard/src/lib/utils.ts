@@ -64,9 +64,15 @@ export function formatConversationTitle(contactId: string, contactName?: string 
   return extractPhoneFromJid(scope.scopeContactJid);
 }
 
-export function formatConversationSubtitle(contactId: string): string | null {
+export function formatConversationSubtitle(
+  contactId: string,
+  contactName?: string | null,
+  groupName?: string | null
+): string | null {
   const scope = parseConversationScope(contactId);
   if (!scope.isScopedGroup || !scope.groupJid || !scope.participantJid) return null;
 
-  return `Member ${extractPhoneFromJid(scope.participantJid)} di grup ${extractPhoneFromJid(scope.groupJid)}`;
+  const memberLabel = contactName?.trim() || extractPhoneFromJid(scope.participantJid);
+  const groupLabel = groupName?.trim() || extractPhoneFromJid(scope.groupJid);
+  return `Member ${memberLabel} di grup ${groupLabel}`;
 }

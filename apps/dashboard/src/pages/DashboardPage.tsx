@@ -101,9 +101,9 @@ export function DashboardPage() {
                                     </p>
                                     <span className="text-[11px] text-muted-foreground">{formatDate(conversation.last_message_at)}</span>
                                 </div>
-                                {formatConversationSubtitle(conversation.contact_id) ? (
+                                {formatConversationSubtitle(conversation.contact_id, conversation.contact_name, conversation.group_name) ? (
                                     <p className="mt-1 truncate text-[11px] text-emerald-700 dark:text-emerald-400">
-                                        {formatConversationSubtitle(conversation.contact_id)}
+                                        {formatConversationSubtitle(conversation.contact_id, conversation.contact_name, conversation.group_name)}
                                     </p>
                                 ) : null}
                                 <p className="mt-2 truncate text-xs leading-relaxed text-muted-foreground">{conversation.last_message}</p>

@@ -71,6 +71,7 @@ function upsertPreview(conversations: ConversationSummary[], contactId: string, 
     : {
         contact_id: contactId,
         contact_name: contactId,
+        group_name: null,
         last_message: message.body,
         last_message_at: message.created_at,
         message_count: 1,

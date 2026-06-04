@@ -10,7 +10,7 @@ export function ConversationsPage() {
     const active = conversations.find((conversation) => conversation.contact_id === activeContactId);
 
     const displayName = active ? formatConversationTitle(active.contact_id, active.contact_name) : 'Pilih percakapan';
-    const displaySubtitle = active ? formatConversationSubtitle(active.contact_id) : null;
+    const displaySubtitle = active ? formatConversationSubtitle(active.contact_id, active.contact_name, active.group_name) : null;
 
     useEffect(() => {
         void loadConversations();

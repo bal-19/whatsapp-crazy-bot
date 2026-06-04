@@ -58,6 +58,7 @@ export interface Message {
 export interface ConversationSummary {
     contact_id: string;
     contact_name: string | null;
+    group_name: string | null;
     last_message: string;
     last_message_at: string;
     message_count: number;

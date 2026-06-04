@@ -37,6 +37,30 @@ describe('appDb.upsertContact', () => {
   });
 });
 
+describe('appDb group metadata', () => {
+  it('adds group_name to scoped group conversation summaries', async () => {
+    const groupJid = `120363${Date.now()}@g.us`;
+    const participantJid = `62812${Date.now()}@s.whatsapp.net`;
+    const contactId = `${groupJid}::${participantJid}`;
+
+    await appDb.upsertGroup(groupJid, 'Grup Keluarga');
+    await appDb.upsertContact(contactId, 'Bima');
+    await appDb.insertMessage({
+      id: `group-msg-${Date.now()}`,
+      contact_id: contactId,
+      direction: 'inbound',
+      body: 'Ikmal halo'
+    });
+
+    const summaries = await appDb.listConversations();
+    const summary = summaries.data.find((item) => item.contact_id === contactId);
+
+    assert.ok(summary);
+    assert.equal(summary.contact_name, 'Bima');
+    assert.equal(summary.group_name, 'Grup Keluarga');
+  });
+});
+
 describe('appDb personal memories', () => {
   it('stores and clears memories per scoped contact id', async () => {
     const contactId = `group@g.us::62812${Date.now()}@s.whatsapp.net`;

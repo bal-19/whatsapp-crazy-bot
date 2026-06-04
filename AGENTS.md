@@ -18,6 +18,7 @@ WhatsApp Message
   -> generateBotReply()
   -> Gemini queue
   -> processGeminiOutput()
+  -> resolve BotReply payload
   -> sendMessage() ke WhatsApp
   -> simpan outbound message ke database
 ```
@@ -198,6 +199,29 @@ Detail sanitasi:
 - hapus tag HTML
 - batasi maksimal 2 newline berurutan
 
+Untuk reply text, hasil `processGeminiOutput()` sekarang dibungkus sebagai `BotReply` bertipe `text` sebelum diteruskan ke jalur pengiriman.
+
+## 8.1 Reply Type dan Outbound Media
+
+Outbound reply sekarang tidak lagi diasumsikan selalu string plain text.
+
+Fondasi aktif:
+
+- `apps/server/src/ai/reply-types.ts`
+- `apps/server/src/services/mediaService.ts`
+
+Jenis reply yang sudah didukung di layer runtime:
+
+- `text`
+- `image`
+
+Aturan runtime:
+
+- text reply tetap dikirim sebagai `{ text: ... }`
+- image reply bisa dikirim dari `imageUrl` atau `imageBuffer`
+- preview outbound yang disimpan di database tetap memakai text utama atau caption
+- metadata media outbound disimpan ke `raw_payload`
+
 ## 9. Rate Limiting dan Queue
 
 Implementasi ada di [apps/server/src/ai/rate-limiter.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/ai/rate-limiter.ts:1).
@@ -258,6 +282,13 @@ Event penting yang muncul di kode:
 - `audit_intent_detected`
 - `audit_reply_sent`
 - `gemini_error`
+
+Metadata `audit_reply_sent` sekarang juga dapat memuat:
+
+- `replyType`
+- `mimeType`
+- `mediaSource`
+- `hasCaption`
 
 ## 12. Admin Authentication
 

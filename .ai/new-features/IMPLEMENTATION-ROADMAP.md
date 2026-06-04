@@ -79,7 +79,7 @@ Catatan kompatibilitas:
 
 ## Batch 2: Multimodal Reply Base + Audit Extension
 
-Status: `belum diimplementasi`
+Status: `sudah diimplementasi sebagian`
 
 Fitur:
 
@@ -92,6 +92,15 @@ Target hasil:
 - text reply lama tetap berjalan
 - image reply dari URL atau buffer punya jalur `sendAndLog()` sendiri
 - audit log mencatat `reply_type`, `mime_type`, dan ringkasan media
+
+Implementasi saat ini:
+
+- `BotReply` sudah tersedia di `apps/server/src/ai/reply-types.ts`
+- `generateBotReply()` sekarang mengembalikan `BotReply` dan text reply lama tetap berjalan
+- `BotManager.sendAndLog()` sudah mendukung text dan image reply
+- `mediaService` sudah menangani payload WhatsApp, preview storage, dan audit summary
+- metadata media outbound sudah disimpan ke `raw_payload`
+- audit reply sudah memuat `replyType`, `mimeType`, `mediaSource`, dan `hasCaption`
 
 Komponen utama:
 

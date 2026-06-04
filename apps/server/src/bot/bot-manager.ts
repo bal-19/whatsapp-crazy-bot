@@ -29,6 +29,9 @@ import {
     toConversationScopeLogMeta,
     type ConversationScope,
 } from "./conversation-scope.js";
+import { getReplyPreview, type BotReply } from "../ai/reply-types.js";
+import { mediaService } from "../services/mediaService.js";
+import { createTextReply } from "../ai/reply-types.js";
 
 export class BotManager {
     private sock: WASocket | null = null;
@@ -270,7 +273,7 @@ export class BotManager {
             await appDb.clearConversation(scope.contactId);
             await this.sendAndLog(
                 scope,
-                ERROR_MESSAGES.reset,
+                createTextReply(ERROR_MESSAGES.reset),
                 null,
                 0,
                 message,
@@ -281,7 +284,7 @@ export class BotManager {
         if (intent === "handoff") {
             await this.sendAndLog(
                 scope,
-                ERROR_MESSAGES.handoff,
+                createTextReply(ERROR_MESSAGES.handoff),
                 null,
                 0,
                 message,
@@ -308,14 +311,19 @@ export class BotManager {
 
     private async sendAndLog(
         scope: ConversationScope,
-        body: string,
+        reply: BotReply,
         aiModel: string | null,
         latencyMs: number | null,
         quotedMessage?: proto.IWebMessageInfo,
     ): Promise<Message> {
+        const body = getReplyPreview(reply);
+        const replyContent = mediaService.toWhatsAppContent(reply);
+        const rawPayload = mediaService.toStoragePayload(reply);
+        const auditSummary = mediaService.toAuditSummary(reply);
+
         await this.sock?.sendMessage(
             scope.deliveryJid,
-            { text: body },
+            replyContent,
             quotedMessage ? { quoted: quotedMessage } : undefined,
         );
         await appDb.upsertContact(scope.contactId);
@@ -326,6 +334,7 @@ export class BotManager {
             body,
             ai_model: aiModel,
             latency_ms: latencyMs,
+            raw_payload: rawPayload,
         });
         emitNewMessage(scope.contactId, outbound);
         emitAnalyticsUpdate(await appDb.getAnalyticsSummary());
@@ -333,7 +342,7 @@ export class BotManager {
             ...toConversationScopeLogMeta(scope),
             aiModel,
             latencyMs,
-            replyType: "text",
+            ...auditSummary,
             outputLength: body.length,
         });
         return outbound;

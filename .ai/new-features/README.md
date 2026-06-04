@@ -55,7 +55,7 @@ Daftar fitur:
 - `02-personal-memory.md`: memory personal kecil-kecilan agar bot terasa lebih hidup
   Status: `belum diimplementasi`
 - `03-multimodal-replies.md`: balasan multimodal berupa teks + gambar/media
-  Status: `belum diimplementasi`
+  Status: `sudah diimplementasi`
 - `04-audit-log.md`: audit log untuk melacak alur keputusan, prompt, dan hasil balasan bot
   Status: `belum diimplementasi`
 - `05-image-meme-analysis.md`: analisis gambar, meme, dan screenshot dari user

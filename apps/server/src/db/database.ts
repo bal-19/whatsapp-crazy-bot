@@ -141,6 +141,7 @@ interface DatabaseAdapter {
     ai_model?: string | null;
     tokens_used?: number | null;
     latency_ms?: number | null;
+    raw_payload?: Record<string, unknown> | null;
   }): Promise<Message>;
   listConversations(page?: number, limit?: number): Promise<PaginatedResponse<ConversationSummary>>;
   getConversation(contactId: string): Promise<ConversationDetail | null>;
@@ -337,6 +338,7 @@ class InMemoryDatabase implements DatabaseAdapter {
     ai_model?: string | null;
     tokens_used?: number | null;
     latency_ms?: number | null;
+    raw_payload?: Record<string, unknown> | null;
   }): Promise<Message> {
     await this.upsertContact(input.contact_id);
 
@@ -351,7 +353,7 @@ class InMemoryDatabase implements DatabaseAdapter {
       ai_model: input.ai_model ?? null,
       tokens_used: input.tokens_used ?? null,
       latency_ms: input.latency_ms ?? null,
-      raw_payload: null,
+      raw_payload: input.raw_payload ?? null,
       created_at: now
     };
 
@@ -635,6 +637,7 @@ class SupabaseDatabase implements DatabaseAdapter {
     ai_model?: string | null;
     tokens_used?: number | null;
     latency_ms?: number | null;
+    raw_payload?: Record<string, unknown> | null;
   }): Promise<Message> {
     await this.ready;
     const contact = await this.ensureContact(input.contact_id);
@@ -647,7 +650,8 @@ class SupabaseDatabase implements DatabaseAdapter {
       status: input.status ?? 'sent',
       ai_model: input.ai_model ?? null,
       tokens_used: input.tokens_used ?? null,
-      latency_ms: input.latency_ms ?? null
+      latency_ms: input.latency_ms ?? null,
+      raw_payload: input.raw_payload ?? null
     };
 
     const { data, error } = await supabaseAdmin!

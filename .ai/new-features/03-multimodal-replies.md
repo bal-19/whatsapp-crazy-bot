@@ -34,6 +34,14 @@ Versi awal yang paling realistis:
 - dukung `image + caption`
 - dukung `image` dari URL atau buffer
 
+Status implementasi saat ini:
+
+- reply type `text` dan `image` sudah tersedia
+- `sendAndLog()` sudah menerima reply type
+- image reply dari URL atau buffer sudah bisa dibentuk di layer runtime
+- metadata media outbound sudah tersimpan di `raw_payload`
+- fitur user-facing yang memicu image reply otomatis masih menyusul di batch berikutnya
+
 Ini sudah cukup untuk:
 
 - kirim meme

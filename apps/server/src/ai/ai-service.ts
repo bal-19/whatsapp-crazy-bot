@@ -14,6 +14,7 @@ import {
 import { ERROR_MESSAGES } from "./error-messages.js";
 import { logService } from "../services/logService.js";
 import { botConfigService } from "../services/botConfigService.js";
+import { createTextReply, type BotReply } from "./reply-types.js";
 
 export interface GenerateReplyInput {
     contactId: string;
@@ -23,7 +24,7 @@ export interface GenerateReplyInput {
 }
 
 export interface GenerateReplyResult {
-    reply: string;
+    reply: BotReply;
     latencyMs: number;
     aiModel: string;
 }
@@ -33,7 +34,7 @@ export async function generateBotReply(
 ): Promise<GenerateReplyResult> {
     if (isQueueOverloaded()) {
         return {
-            reply: ERROR_MESSAGES.queue_full,
+            reply: createTextReply(ERROR_MESSAGES.queue_full),
             latencyMs: 0,
             aiModel: env.GEMINI_MODEL,
         };
@@ -64,7 +65,11 @@ export async function generateBotReply(
         const reply = processGeminiOutput(raw ?? "");
         const latencyMs = Date.now() - startedAt;
         memory.addTurn(input.contactId, input.message, reply);
-        return { reply, latencyMs, aiModel: env.GEMINI_MODEL };
+        return {
+            reply: createTextReply(reply),
+            latencyMs,
+            aiModel: env.GEMINI_MODEL,
+        };
     } catch (error) {
         const latencyMs = Date.now() - startedAt;
         const message =
@@ -74,7 +79,7 @@ export async function generateBotReply(
             errorMessage: message,
         });
         return {
-            reply: classifyGeminiError(message),
+            reply: createTextReply(classifyGeminiError(message)),
             latencyMs,
             aiModel: env.GEMINI_MODEL,
         };

@@ -14,6 +14,7 @@ import { updateLastLoginAt } from "../services/adminUserService.js";
 import { botManager } from "../bot/bot-manager.js";
 import { getQueueSize } from "../ai/rate-limiter.js";
 import { generateBotReply } from "../ai/ai-service.js";
+import { getReplyPreview } from "../ai/reply-types.js";
 
 export function createApiRouter(): Router {
     const router = Router();
@@ -204,7 +205,10 @@ export function createApiRouter(): Router {
                 config: { ...baseConfig, ...body.data.config },
             });
 
-            res.json({ reply: result.reply, latency_ms: result.latencyMs });
+            res.json({
+                reply: getReplyPreview(result.reply),
+                latency_ms: result.latencyMs,
+            });
         }),
     );
 

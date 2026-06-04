@@ -1,15 +1,22 @@
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "outDir": "dist",
-    "rootDir": "src",
-    "noEmit": false,
-    "types": ["node"],
-    "moduleResolution": "NodeNext",
-    "module": "NodeNext",
-    "paths": {
-      "@whatsapp-bot/shared": ["../../packages/shared/dist/index.d.ts"]
-    }
-  },
-  "include": ["src"]
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "outDir": "dist",
+        "rootDir": "src",
+        "noEmit": false,
+        "types": [
+            "node"
+        ],
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "baseUrl": ".",
+        "paths": {
+            "@whatsapp-bot/shared": [
+                "../../packages/shared/dist/index.d.ts"
+            ]
+        }
+    },
+    "include": [
+        "src"
+    ]
 }

@@ -12,11 +12,14 @@ Alur runtime saat ini:
 WhatsApp Message
   -> Baileys socket
   -> BotManager.handleMessage()
+  -> resolveConversationScope()
   -> sanitizeInput()
   -> shouldBotRespond() + detectIntent()
+  -> parse inbound image (jika ada)
   -> generateBotReply()
   -> Gemini queue
   -> processGeminiOutput()
+  -> resolve BotReply payload
   -> sendMessage() ke WhatsApp
   -> simpan outbound message ke database
 ```
@@ -24,6 +27,7 @@ WhatsApp Message
 Komponen kunci:
 
 - [apps/server/src/bot/bot-manager.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/bot/bot-manager.ts:1)
+- [apps/server/src/bot/conversation-scope.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/bot/conversation-scope.ts:1)
 - [apps/server/src/ai/ai-service.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/ai/ai-service.ts:1)
 - [apps/server/src/ai/prompt-builder.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/ai/prompt-builder.ts:1)
 - [apps/server/src/ai/conversation-memory.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/ai/conversation-memory.ts:1)
@@ -35,6 +39,7 @@ Client Gemini sekarang dibangun dari [apps/server/src/ai/gemini-client.ts](/Volu
 Konfigurasi aktif:
 
 - Model: `env.GEMINI_MODEL`
+- Model analisis gambar statis: `gemini-3.1-flash-image`
 - Default `.env.example`: `gemini-1.5-flash-latest`
 - `temperature`: `0.7`
 - `topP`: `0.9`
@@ -47,6 +52,7 @@ Catatan penting:
 
 - Dokumen lama menyebut threshold safety Gemini di-code; implementasi sekarang tidak memasang safety settings eksplisit.
 - Jika `GEMINI_API_KEY` tidak ada, pemanggilan Gemini akan gagal.
+- Untuk analisis gambar, jalur multimodal sekarang memakai model statis `gemini-3.1-flash-image` melalui `generateContent()` dengan image `inlineData`.
 
 ## 3. Arsitektur Prompt Saat Ini
 
@@ -114,6 +120,11 @@ Bot mengabaikan:
 - grup jika `ignore_groups=true`
 - semua pesan jika `is_active=false`
 
+Catatan media:
+
+- image tanpa caption belum diproses di V1
+- image dengan caption tetap mengikuti rules mention yang sama seperti text message
+
 ### 5.3 Intent khusus
 
 Intent yang benar-benar ada:
@@ -126,8 +137,28 @@ Tidak ada `off_hours` aktif di implementasi sekarang.
 
 Trigger:
 
-- `/reset` atau `mulai dari awal` -> clear memory + clear conversation di database
+- `/list`, `/help`, atau `/commands` -> kirim daftar command yang tersedia
+- `/reset` atau `mulai dari awal` -> clear memory + clear conversation di database untuk conversation scope aktif
+- `/resetmemory`, `/lupainaku`, atau `lupain aku` -> clear personal memory untuk conversation scope aktif
 - `bicara dengan manusia`, `hubungi admin`, `minta tolong orang` -> kirim template handoff
+
+## 5.4 Conversation Scope
+
+Conversation identity sekarang dipisahkan dari tujuan pengiriman WhatsApp.
+
+Aturan:
+
+- chat personal memakai `remoteJid` sebagai `contact_id`
+- chat grup memakai format `groupJid::participantJid` sebagai `contact_id`
+- jika `participantJid` tidak tersedia pada pesan grup, fallback ke `groupJid` dan log `conversation_scope_group_fallback`
+- balasan WhatsApp tetap dikirim ke `deliveryJid`, yaitu JID personal atau JID grup asli
+
+Dampak:
+
+- history dan memory session di grup dipisah per member
+- `/reset` di grup hanya membersihkan scope member yang memicu reset
+- outbound message tetap disimpan ke `contact_id` scoped
+- dashboard conversation bisa menampilkan beberapa conversation untuk satu grup karena tiap member punya scope sendiri
 
 ## 6. Memory Percakapan
 
@@ -143,6 +174,30 @@ Perilaku:
 
 Source of truth percakapan tetap database Supabase, sementara memory dipakai untuk performa dan konteks cepat.
 
+Catatan grup:
+
+- key memory memakai conversation scope
+- pesan dari member berbeda dalam grup yang sama tidak berbagi memory session
+
+## 6.1 Personal Memory
+
+Selain conversation memory jangka pendek, bot sekarang punya personal memory ringan untuk fakta eksplisit per user/scope.
+
+Komponen:
+
+- [apps/server/src/ai/personal-memory.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/ai/personal-memory.ts:1)
+- [apps/server/src/services/personalMemoryService.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/services/personalMemoryService.ts:1)
+
+Perilaku V1:
+
+- memory mengikuti `contact_id` hasil conversation scope
+- memory hanya disimpan dari pola eksplisit
+- key yang aktif saat ini:
+  - `preferred_name`
+  - `favorite_topics`
+- memory disisipkan ke prompt sebagai context tambahan
+- personal memory bisa dihapus dengan command reset memory
+
 ## 7. Input Sanitization
 
 Sanitizer aktif di [apps/server/src/ai/input-sanitizer.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/ai/input-sanitizer.ts:1).
@@ -154,6 +209,11 @@ Aturan:
 - truncate input di atas 2000 karakter
 - deteksi sederhana pola prompt injection untuk logging
 - tidak menolak injection pattern secara otomatis; tetap diteruskan ke model dengan guardrails prompt
+
+Untuk image analysis V1:
+
+- caption tetap melewati sanitizer yang sama
+- binary image tidak ikut masuk ke sanitizer
 
 ## 8. Output Processing
 
@@ -172,6 +232,46 @@ Detail sanitasi:
 - hapus `**bold**`, `*italic*`, `_italic_`, inline code, heading markdown
 - hapus tag HTML
 - batasi maksimal 2 newline berurutan
+
+Untuk reply text, hasil `processGeminiOutput()` sekarang dibungkus sebagai `BotReply` bertipe `text` sebelum diteruskan ke jalur pengiriman.
+
+## 8.1 Reply Type dan Outbound Media
+
+Outbound reply sekarang tidak lagi diasumsikan selalu string plain text.
+
+Fondasi aktif:
+
+- `apps/server/src/ai/reply-types.ts`
+- `apps/server/src/services/mediaService.ts`
+
+Jenis reply yang sudah didukung di layer runtime:
+
+- `text`
+- `image`
+
+Aturan runtime:
+
+- text reply tetap dikirim sebagai `{ text: ... }`
+- image reply bisa dikirim dari `imageUrl` atau `imageBuffer`
+- preview outbound yang disimpan di database tetap memakai text utama atau caption
+- metadata media outbound disimpan ke `raw_payload`
+
+## 8.2 Analisis Gambar V1
+
+Bot sekarang punya jalur multimodal untuk `imageMessage` yang memiliki caption atau instruksi teks.
+
+Komponen:
+
+- [apps/server/src/ai/media-parser.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/ai/media-parser.ts:1)
+- [apps/server/src/ai/multimodal-service.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/ai/multimodal-service.ts:1)
+
+Perilaku V1:
+
+- bot mendownload image dari WhatsApp bila pesan berupa `imageMessage`
+- caption user dipakai sebagai instruksi analisis
+- mode analisis dasar yang ada: `describe`, `caption`, `roast`, `meme_explain`
+- hasil akhir tetap dikirim sebagai reply text
+- image yang terlalu besar akan memakai fallback error media
 
 ## 9. Rate Limiting dan Queue
 
@@ -228,7 +328,22 @@ Event penting yang muncul di kode:
 - `bot_reset_auth_requested`
 - `message_received`
 - `message_ignored_no_mention`
+- `conversation_scope_group_fallback`
+- `audit_message_received`
+- `audit_intent_detected`
+- `audit_memory_updated`
+- `audit_memory_cleared`
+- `audit_multimodal_requested`
+- `audit_reply_sent`
+- `image_analysis_media_error`
 - `gemini_error`
+
+Metadata `audit_reply_sent` sekarang juga dapat memuat:
+
+- `replyType`
+- `mimeType`
+- `mediaSource`
+- `hasCaption`
 
 ## 12. Admin Authentication
 

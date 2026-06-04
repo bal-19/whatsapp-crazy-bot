@@ -3,19 +3,14 @@ import { Card, CardContent } from '@/components/ui';
 import { ConversationList } from '@/components/features/conversations/ConversationList';
 import { ChatWindow } from '@/components/features/conversations/ChatWindow';
 import { useConversationStore } from '@/stores/conversationStore';
-
-// Helper: Extract phone number from JID format (6281234567890@s.whatsapp.net -> 6281234567890)
-function extractPhoneFromJid(jid: string | undefined): string {
-    if (!jid) return 'Unknown';
-    return jid.split('@')[0] || 'Unknown';
-}
+import { formatConversationSubtitle, formatConversationTitle } from '@/lib/utils';
 
 export function ConversationsPage() {
     const { conversations, activeContactId, messages, loadConversations, selectContact } = useConversationStore();
     const active = conversations.find((conversation) => conversation.contact_id === activeContactId);
 
-    // Display phone number only
-    const displayName = (active?.contact_name ? active.contact_name : extractPhoneFromJid(active?.contact_id));
+    const displayName = active ? formatConversationTitle(active.contact_id, active.contact_name) : 'Pilih percakapan';
+    const displaySubtitle = active ? formatConversationSubtitle(active.contact_id) : null;
 
     useEffect(() => {
         void loadConversations();
@@ -41,14 +36,15 @@ export function ConversationsPage() {
                     </div>
                 </CardContent>
             </Card>
-            <div className="min-h-0 flex-1 grid grid-cols-1 overflow-hidden rounded-[1.5rem] border border-white/60 bg-card/80 shadow-[0_22px_60px_-36px_rgba(18,57,42,0.35)] xl:grid-cols-[380px_1fr] xl:rounded-[1.75rem]">
+            <div className="min-h-0 flex-1 grid grid-cols-1 overflow-hidden rounded-[1.5rem] border border-white/60 dark:border-slate-700/50 bg-card/80 dark:bg-slate-900/50 shadow-[0_22px_60px_-36px_rgba(18,57,42,0.35)] dark:shadow-[0_22px_60px_-36px_rgba(0,0,0,0.5)] xl:grid-cols-[380px_1fr] xl:rounded-[1.75rem]">
                 <ConversationList
                     conversations={conversations}
                     activeContactId={activeContactId}
                     onSelect={(contactId) => void selectContact(contactId)}
                 />
                 <ChatWindow
-                    title={displayName ?? 'Pilih percakapan'}
+                    title={displayName}
+                    subtitle={displaySubtitle}
                     messages={activeContactId ? messages[activeContactId] ?? [] : []}
                 />
             </div>

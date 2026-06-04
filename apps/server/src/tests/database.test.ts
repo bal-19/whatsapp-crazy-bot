@@ -36,3 +36,47 @@ describe('appDb.upsertContact', () => {
     assert.equal(contact.name, 'Nama Baru');
   });
 });
+
+describe('appDb personal memories', () => {
+  it('stores and clears memories per scoped contact id', async () => {
+    const contactId = `group@g.us::62812${Date.now()}@s.whatsapp.net`;
+
+    await appDb.upsertPersonalMemory(contactId, {
+      key: 'preferred_name',
+      value: 'Bima',
+      confidence: 0.95,
+      sourceMessageId: 'msg-1'
+    });
+
+    const memories = await appDb.listPersonalMemories(contactId);
+    assert.equal(memories.length, 1);
+    assert.equal(memories[0]?.key, 'preferred_name');
+    assert.equal(memories[0]?.value, 'Bima');
+
+    await appDb.clearPersonalMemories(contactId);
+    assert.deepEqual(await appDb.listPersonalMemories(contactId), []);
+  });
+
+  it('purges operational data without touching preserved domains', async () => {
+    const contactId = `purge-${Date.now()}@s.whatsapp.net`;
+
+    await appDb.upsertContact(contactId, 'Purge Test');
+    await appDb.insertMessage({
+      id: `msg-${Date.now()}`,
+      contact_id: contactId,
+      direction: 'inbound',
+      body: 'halo'
+    });
+    await appDb.upsertPersonalMemory(contactId, {
+      key: 'preferred_name',
+      value: 'Purge',
+      confidence: 0.9
+    });
+
+    const summary = await appDb.purgeOperationalData();
+    assert.equal(summary.contactsDeleted >= 1, true);
+    assert.equal(summary.messagesDeleted >= 1, true);
+    assert.equal(summary.memoriesDeleted >= 1, true);
+    assert.deepEqual(await appDb.listContacts(), []);
+  });
+});

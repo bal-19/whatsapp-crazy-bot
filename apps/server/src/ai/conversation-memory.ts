@@ -54,6 +54,10 @@ export class ConversationMemory {
     this.sessions.delete(contactId);
   }
 
+  clearAll(): void {
+    this.sessions.clear();
+  }
+
   purgeExpired(): number {
     let count = 0;
     for (const [id, session] of this.sessions.entries()) {

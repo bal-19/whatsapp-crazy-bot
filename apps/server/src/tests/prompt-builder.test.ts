@@ -8,7 +8,8 @@ describe('buildSystemPrompt', () => {
       botName: 'Bot Gila',
       persona: 'Persona custom admin',
       toneStyle: 'pedas',
-      contactName: 'Budi'
+      contactName: 'Budi',
+      personalMemorySummary: 'Nama panggilan yang disukai: Bima'
     });
 
     assert.match(prompt, /Aturan Inti/);
@@ -16,5 +17,6 @@ describe('buildSystemPrompt', () => {
     assert.match(prompt, /WIB/);
     assert.match(prompt, /Budi/);
     assert.match(prompt, /Bot Gila/);
+    assert.match(prompt, /Nama panggilan yang disukai: Bima/);
   });
 });

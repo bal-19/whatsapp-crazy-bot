@@ -20,7 +20,7 @@ export function AnalyticsPage() {
                         <h1 className="mt-2 text-2xl font-bold text-foreground sm:text-3xl">Analytics</h1>
                         <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-[15px]">Ringkasan performa dan kesehatan bot dengan fokus pada metrik yang paling sering dicek tim operasional.</p>
                     </div>
-                    <div className="rounded-2xl bg-white/80 px-5 py-3.5 text-sm text-slate-600 shadow-sm">
+                    <div className="rounded-2xl bg-white/80 dark:bg-slate-800 px-5 py-3.5 text-sm text-slate-600 dark:text-slate-400 shadow-sm">
                         Update mengikuti data analytics yang sama seperti sebelumnya
                     </div>
                 </CardContent>

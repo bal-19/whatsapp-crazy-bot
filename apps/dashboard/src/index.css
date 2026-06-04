@@ -36,7 +36,7 @@
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 217.2 32.6% 17.5%;
     --foreground: 210 40% 98%;
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
@@ -55,6 +55,11 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 142.1 70.6% 45.3%;
+
+    background:
+      radial-gradient(circle at top left, rgba(16, 185, 129, 0.1), transparent 28%),
+      radial-gradient(circle at top right, rgba(34, 197, 94, 0.08), transparent 30%),
+      linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
   }
 }
 
@@ -80,11 +85,15 @@
   ::selection {
     background: rgba(22, 163, 74, 0.18);
   }
+
+  .dark ::selection {
+    background: rgba(34, 197, 94, 0.3);
+  }
 }
 
 @layer utilities {
   .glass-panel {
-    @apply border border-white/60 bg-white/85 shadow-sm backdrop-blur-xl;
+    @apply border border-white/60 dark:border-slate-700/50 bg-white/85 dark:bg-slate-900/50 shadow-sm backdrop-blur-xl;
   }
 
   .mesh-card {
@@ -93,9 +102,19 @@
       linear-gradient(135deg, rgba(248, 253, 250, 0.95), rgba(255, 255, 255, 0.95));
   }
 
+  .dark .mesh-card {
+    background-image:
+      radial-gradient(circle at top left, rgba(51, 65, 85, 0.4), transparent 36%),
+      linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));
+  }
+
   .soft-scrollbar {
     scrollbar-width: thin;
     scrollbar-color: rgba(21, 128, 61, 0.25) transparent;
+  }
+
+  .dark .soft-scrollbar {
+    scrollbar-color: rgba(34, 197, 94, 0.2) transparent;
   }
 
   .soft-scrollbar::-webkit-scrollbar {
@@ -108,13 +127,17 @@
     border-radius: 9999px;
   }
 
+  .dark .soft-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(34, 197, 94, 0.15);
+  }
+
   .soft-scrollbar::-webkit-scrollbar-track {
     background: transparent;
   }
 }
 
 .focus-ring {
-  @apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
+  @apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 dark:focus:ring-offset-slate-950;
 }
 
 /* Typography improvements */

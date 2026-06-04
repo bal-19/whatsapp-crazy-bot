@@ -11,6 +11,7 @@ interface ConversationStore {
   loadConversations: () => Promise<void>;
   selectContact: (contactId: string) => Promise<void>;
   appendMessage: (contactId: string, message: Message) => void;
+  clearState: () => void;
 }
 
 export const useConversationStore = create<ConversationStore>((set, get) => ({
@@ -22,9 +23,13 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
   loadConversations: async () => {
     set({ isLoadingList: true });
     const response = await conversationService.getAll();
+    const currentActive = get().activeContactId;
+    const nextActive = response.data.some((item) => item.contact_id === currentActive)
+      ? currentActive
+      : response.data[0]?.contact_id ?? null;
     set({
       conversations: response.data,
-      activeContactId: get().activeContactId ?? response.data[0]?.contact_id ?? null,
+      activeContactId: nextActive,
       isLoadingList: false
     });
   },
@@ -44,7 +49,14 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
         messages: { ...state.messages, [contactId]: [...current, message] },
         conversations
       };
-    })
+    }),
+  clearState: () => set({
+    conversations: [],
+    activeContactId: null,
+    messages: {},
+    isLoadingList: false,
+    isLoadingMessages: false
+  })
 }));
 
 function upsertPreview(conversations: ConversationSummary[], contactId: string, message: Message): ConversationSummary[] {

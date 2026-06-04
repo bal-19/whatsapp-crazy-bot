@@ -24,6 +24,17 @@ import { ERROR_MESSAGES } from "../ai/error-messages.js";
 import { memory } from "../ai/conversation-memory.js";
 import { generateBotReply } from "../ai/ai-service.js";
 import { createWhatsAppAuthState } from "./whatsapp-auth-state.js";
+import {
+    resolveConversationScope,
+    toConversationScopeLogMeta,
+    type ConversationScope,
+} from "./conversation-scope.js";
+import { getReplyPreview, type BotReply } from "../ai/reply-types.js";
+import { mediaService } from "../services/mediaService.js";
+import { createTextReply } from "../ai/reply-types.js";
+import { personalMemoryService } from "../services/personalMemoryService.js";
+import { parseInboundImageAttachment } from "../ai/media-parser.js";
+import { detectImageAnalysisMode } from "../ai/multimodal-service.js";
 
 export class BotManager {
     private sock: WASocket | null = null;
@@ -210,28 +221,44 @@ export class BotManager {
         const isGroup = jid.endsWith("@g.us");
         if (!config.is_active || (isGroup && config.ignore_groups)) return;
 
+        const scope = resolveConversationScope(message);
+        if (!scope) return;
+
+        const scopeMeta = toConversationScopeLogMeta(scope);
+        if (scope.usedGroupFallback) {
+            logService.write("warn", "conversation_scope_group_fallback", {
+                ...scopeMeta,
+                messageId,
+            });
+        }
+
         // Cek apakah bot harus merespons (mention detection)
         if (!shouldBotRespond(text, config.bot_name)) {
             // Log bahwa pesan tidak memention bot
             logService.write("info", "message_ignored_no_mention", {
-                contactId: jid,
+                ...scopeMeta,
                 messagePreview: text.substring(0, 50),
             });
             return;
         }
 
         const contactName = message.pushName ?? null;
-        await appDb.upsertContact(jid, contactName);
+        await appDb.upsertContact(scope.contactId, contactName);
         const inbound = await appDb.insertMessage({
             id: messageId,
-            contact_id: jid,
+            contact_id: scope.contactId,
             direction: "inbound",
             body: text,
         });
-        emitNewMessage(jid, inbound);
+        emitNewMessage(scope.contactId, inbound);
         emitAnalyticsUpdate(await appDb.getAnalyticsSummary());
         logService.write("info", "message_received", {
-            contactId: jid,
+            ...scopeMeta,
+            inputLength: text.length,
+        });
+        logService.write("info", "audit_message_received", {
+            ...scopeMeta,
+            messageId,
             inputLength: text.length,
         });
 
@@ -239,28 +266,134 @@ export class BotManager {
         if (!sanitized.isValid) return;
 
         const intent = detectIntent(sanitized.sanitized);
+        const currentPersonalMemorySummary =
+            await personalMemoryService.getSummary(scope.contactId);
+        logService.write("info", "audit_intent_detected", {
+            ...scopeMeta,
+            messageId,
+            intent,
+            personalMemorySummary: currentPersonalMemorySummary,
+        });
         if (intent === "reset") {
-            memory.clearSession(jid);
-            await appDb.clearConversation(jid);
-            await this.sendAndLog(jid, ERROR_MESSAGES.reset, null, 0, message);
+            memory.clearSession(scope.contactId);
+            await appDb.clearConversation(scope.contactId);
+            await this.sendAndLog(
+                scope,
+                createTextReply(ERROR_MESSAGES.reset),
+                null,
+                0,
+                message,
+            );
+            return;
+        }
+
+        if (intent === "memory_reset") {
+            await personalMemoryService.clear(scope.contactId);
+            logService.write("info", "audit_memory_cleared", {
+                ...scopeMeta,
+                messageId,
+            });
+            await this.sendAndLog(
+                scope,
+                createTextReply(
+                    "Sip, aku lupain dulu hal-hal personal yang tadi kusimpan tentang kamu.",
+                ),
+                null,
+                0,
+                message,
+            );
+            return;
+        }
+
+        if (intent === "command_list") {
+            await this.sendAndLog(
+                scope,
+                createTextReply(ERROR_MESSAGES.command_list),
+                null,
+                0,
+                message,
+            );
             return;
         }
 
         if (intent === "handoff") {
-            await this.sendAndLog(jid, ERROR_MESSAGES.handoff, null, 0, message);
+            await this.sendAndLog(
+                scope,
+                createTextReply(ERROR_MESSAGES.handoff),
+                null,
+                0,
+                message,
+            );
             return;
         }
 
-        await this.sock.sendPresenceUpdate("composing", jid);
+        const updatedMemories = await personalMemoryService.rememberFromMessage(
+            scope.contactId,
+            sanitized.sanitized,
+            messageId,
+        );
+        if (updatedMemories.length > 0) {
+            logService.write("info", "audit_memory_updated", {
+                ...scopeMeta,
+                messageId,
+                personalMemorySummary:
+                    await personalMemoryService.getSummary(scope.contactId),
+            });
+        }
+
+        let imageAttachment = null;
+        try {
+            imageAttachment = await parseInboundImageAttachment(this.sock, message);
+        } catch (error) {
+            const errorMessage = getErrorMessage(error);
+            logService.write("error", "image_analysis_media_error", {
+                ...scopeMeta,
+                messageId,
+                errorMessage,
+            });
+
+            const fallback =
+                errorMessage === "IMAGE_TOO_LARGE"
+                    ? ERROR_MESSAGES.media_too_large
+                    : ERROR_MESSAGES.media_unavailable;
+
+            await this.sendAndLog(
+                scope,
+                createTextReply(fallback),
+                null,
+                0,
+                message,
+            );
+            return;
+        }
+
+        if (imageAttachment) {
+            logService.write("info", "audit_multimodal_requested", {
+                ...scopeMeta,
+                messageId,
+                mediaType: "image",
+                mimeType: imageAttachment.mimeType,
+                fileLength: imageAttachment.fileLength,
+                analysisMode: detectImageAnalysisMode(sanitized.sanitized),
+            });
+        }
+
+        await this.sock.sendPresenceUpdate("composing", scope.deliveryJid);
         const result = await generateBotReply({
-            contactId: jid,
+            contactId: scope.contactId,
             contactName,
             message: sanitized.sanitized,
             config,
+            imageAttachment: imageAttachment
+                ? {
+                      buffer: imageAttachment.buffer,
+                      mimeType: imageAttachment.mimeType,
+                  }
+                : undefined,
         });
-        await this.sock.sendPresenceUpdate("paused", jid);
+        await this.sock.sendPresenceUpdate("paused", scope.deliveryJid);
         await this.sendAndLog(
-            jid,
+            scope,
             result.reply,
             result.aiModel,
             result.latencyMs,
@@ -269,28 +402,41 @@ export class BotManager {
     }
 
     private async sendAndLog(
-        jid: string,
-        body: string,
+        scope: ConversationScope,
+        reply: BotReply,
         aiModel: string | null,
         latencyMs: number | null,
         quotedMessage?: proto.IWebMessageInfo,
     ): Promise<Message> {
+        const body = getReplyPreview(reply);
+        const replyContent = mediaService.toWhatsAppContent(reply);
+        const rawPayload = mediaService.toStoragePayload(reply);
+        const auditSummary = mediaService.toAuditSummary(reply);
+
         await this.sock?.sendMessage(
-            jid,
-            { text: body },
+            scope.deliveryJid,
+            replyContent,
             quotedMessage ? { quoted: quotedMessage } : undefined,
         );
-        await appDb.upsertContact(jid);
+        await appDb.upsertContact(scope.contactId);
         const outbound = await appDb.insertMessage({
             id: `bot-${Date.now()}-${crypto.randomUUID()}`,
-            contact_id: jid,
+            contact_id: scope.contactId,
             direction: "outbound",
             body,
             ai_model: aiModel,
             latency_ms: latencyMs,
+            raw_payload: rawPayload,
         });
-        emitNewMessage(jid, outbound);
+        emitNewMessage(scope.contactId, outbound);
         emitAnalyticsUpdate(await appDb.getAnalyticsSummary());
+        logService.write("info", "audit_reply_sent", {
+            ...toConversationScopeLogMeta(scope),
+            aiModel,
+            latencyMs,
+            ...auditSummary,
+            outputLength: body.length,
+        });
         return outbound;
     }
 

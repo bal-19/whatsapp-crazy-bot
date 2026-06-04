@@ -11,6 +11,7 @@ dist/
 
 # Local env files
 .env
+.env.*
 .env.local
 .env.*.local
 !.env.example

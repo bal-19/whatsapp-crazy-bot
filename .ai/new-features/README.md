@@ -48,8 +48,10 @@ Jika status berubah, update README ini agar tetap menjadi sumber ringkas progres
 
 Daftar fitur:
 
+- `IMPLEMENTATION-ROADMAP.md`: urutan batch implementasi berdasarkan runtime di `AGENTS.md`
+  Status: `dokumen perencanaan`
 - `01-group-member-scoped-conversations.md`: conversation grup dipisah per member dalam grup
-  Status: `belum diimplementasi`
+  Status: `sudah diimplementasi`
 - `02-personal-memory.md`: memory personal kecil-kecilan agar bot terasa lebih hidup
   Status: `belum diimplementasi`
 - `03-multimodal-replies.md`: balasan multimodal berupa teks + gambar/media

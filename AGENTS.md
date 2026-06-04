@@ -12,6 +12,7 @@ Alur runtime saat ini:
 WhatsApp Message
   -> Baileys socket
   -> BotManager.handleMessage()
+  -> resolveConversationScope()
   -> sanitizeInput()
   -> shouldBotRespond() + detectIntent()
   -> generateBotReply()
@@ -24,6 +25,7 @@ WhatsApp Message
 Komponen kunci:
 
 - [apps/server/src/bot/bot-manager.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/bot/bot-manager.ts:1)
+- [apps/server/src/bot/conversation-scope.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/bot/conversation-scope.ts:1)
 - [apps/server/src/ai/ai-service.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/ai/ai-service.ts:1)
 - [apps/server/src/ai/prompt-builder.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/ai/prompt-builder.ts:1)
 - [apps/server/src/ai/conversation-memory.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/ai/conversation-memory.ts:1)
@@ -126,8 +128,26 @@ Tidak ada `off_hours` aktif di implementasi sekarang.
 
 Trigger:
 
-- `/reset` atau `mulai dari awal` -> clear memory + clear conversation di database
+- `/reset` atau `mulai dari awal` -> clear memory + clear conversation di database untuk conversation scope aktif
 - `bicara dengan manusia`, `hubungi admin`, `minta tolong orang` -> kirim template handoff
+
+## 5.4 Conversation Scope
+
+Conversation identity sekarang dipisahkan dari tujuan pengiriman WhatsApp.
+
+Aturan:
+
+- chat personal memakai `remoteJid` sebagai `contact_id`
+- chat grup memakai format `groupJid::participantJid` sebagai `contact_id`
+- jika `participantJid` tidak tersedia pada pesan grup, fallback ke `groupJid` dan log `conversation_scope_group_fallback`
+- balasan WhatsApp tetap dikirim ke `deliveryJid`, yaitu JID personal atau JID grup asli
+
+Dampak:
+
+- history dan memory session di grup dipisah per member
+- `/reset` di grup hanya membersihkan scope member yang memicu reset
+- outbound message tetap disimpan ke `contact_id` scoped
+- dashboard conversation bisa menampilkan beberapa conversation untuk satu grup karena tiap member punya scope sendiri
 
 ## 6. Memory Percakapan
 
@@ -142,6 +162,11 @@ Perilaku:
 - Cleanup expired session tiap 30 menit
 
 Source of truth percakapan tetap database Supabase, sementara memory dipakai untuk performa dan konteks cepat.
+
+Catatan grup:
+
+- key memory memakai conversation scope
+- pesan dari member berbeda dalam grup yang sama tidak berbagi memory session
 
 ## 7. Input Sanitization
 
@@ -228,6 +253,10 @@ Event penting yang muncul di kode:
 - `bot_reset_auth_requested`
 - `message_received`
 - `message_ignored_no_mention`
+- `conversation_scope_group_fallback`
+- `audit_message_received`
+- `audit_intent_detected`
+- `audit_reply_sent`
 - `gemini_error`
 
 ## 12. Admin Authentication

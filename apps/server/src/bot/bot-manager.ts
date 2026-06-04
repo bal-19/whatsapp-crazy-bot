@@ -24,6 +24,11 @@ import { ERROR_MESSAGES } from "../ai/error-messages.js";
 import { memory } from "../ai/conversation-memory.js";
 import { generateBotReply } from "../ai/ai-service.js";
 import { createWhatsAppAuthState } from "./whatsapp-auth-state.js";
+import {
+    resolveConversationScope,
+    toConversationScopeLogMeta,
+    type ConversationScope,
+} from "./conversation-scope.js";
 
 export class BotManager {
     private sock: WASocket | null = null;
@@ -210,28 +215,44 @@ export class BotManager {
         const isGroup = jid.endsWith("@g.us");
         if (!config.is_active || (isGroup && config.ignore_groups)) return;
 
+        const scope = resolveConversationScope(message);
+        if (!scope) return;
+
+        const scopeMeta = toConversationScopeLogMeta(scope);
+        if (scope.usedGroupFallback) {
+            logService.write("warn", "conversation_scope_group_fallback", {
+                ...scopeMeta,
+                messageId,
+            });
+        }
+
         // Cek apakah bot harus merespons (mention detection)
         if (!shouldBotRespond(text, config.bot_name)) {
             // Log bahwa pesan tidak memention bot
             logService.write("info", "message_ignored_no_mention", {
-                contactId: jid,
+                ...scopeMeta,
                 messagePreview: text.substring(0, 50),
             });
             return;
         }
 
         const contactName = message.pushName ?? null;
-        await appDb.upsertContact(jid, contactName);
+        await appDb.upsertContact(scope.contactId, contactName);
         const inbound = await appDb.insertMessage({
             id: messageId,
-            contact_id: jid,
+            contact_id: scope.contactId,
             direction: "inbound",
             body: text,
         });
-        emitNewMessage(jid, inbound);
+        emitNewMessage(scope.contactId, inbound);
         emitAnalyticsUpdate(await appDb.getAnalyticsSummary());
         logService.write("info", "message_received", {
-            contactId: jid,
+            ...scopeMeta,
+            inputLength: text.length,
+        });
+        logService.write("info", "audit_message_received", {
+            ...scopeMeta,
+            messageId,
             inputLength: text.length,
         });
 
@@ -239,28 +260,45 @@ export class BotManager {
         if (!sanitized.isValid) return;
 
         const intent = detectIntent(sanitized.sanitized);
+        logService.write("info", "audit_intent_detected", {
+            ...scopeMeta,
+            messageId,
+            intent,
+        });
         if (intent === "reset") {
-            memory.clearSession(jid);
-            await appDb.clearConversation(jid);
-            await this.sendAndLog(jid, ERROR_MESSAGES.reset, null, 0, message);
+            memory.clearSession(scope.contactId);
+            await appDb.clearConversation(scope.contactId);
+            await this.sendAndLog(
+                scope,
+                ERROR_MESSAGES.reset,
+                null,
+                0,
+                message,
+            );
             return;
         }
 
         if (intent === "handoff") {
-            await this.sendAndLog(jid, ERROR_MESSAGES.handoff, null, 0, message);
+            await this.sendAndLog(
+                scope,
+                ERROR_MESSAGES.handoff,
+                null,
+                0,
+                message,
+            );
             return;
         }
 
-        await this.sock.sendPresenceUpdate("composing", jid);
+        await this.sock.sendPresenceUpdate("composing", scope.deliveryJid);
         const result = await generateBotReply({
-            contactId: jid,
+            contactId: scope.contactId,
             contactName,
             message: sanitized.sanitized,
             config,
         });
-        await this.sock.sendPresenceUpdate("paused", jid);
+        await this.sock.sendPresenceUpdate("paused", scope.deliveryJid);
         await this.sendAndLog(
-            jid,
+            scope,
             result.reply,
             result.aiModel,
             result.latencyMs,
@@ -269,28 +307,35 @@ export class BotManager {
     }
 
     private async sendAndLog(
-        jid: string,
+        scope: ConversationScope,
         body: string,
         aiModel: string | null,
         latencyMs: number | null,
         quotedMessage?: proto.IWebMessageInfo,
     ): Promise<Message> {
         await this.sock?.sendMessage(
-            jid,
+            scope.deliveryJid,
             { text: body },
             quotedMessage ? { quoted: quotedMessage } : undefined,
         );
-        await appDb.upsertContact(jid);
+        await appDb.upsertContact(scope.contactId);
         const outbound = await appDb.insertMessage({
             id: `bot-${Date.now()}-${crypto.randomUUID()}`,
-            contact_id: jid,
+            contact_id: scope.contactId,
             direction: "outbound",
             body,
             ai_model: aiModel,
             latency_ms: latencyMs,
         });
-        emitNewMessage(jid, outbound);
+        emitNewMessage(scope.contactId, outbound);
         emitAnalyticsUpdate(await appDb.getAnalyticsSummary());
+        logService.write("info", "audit_reply_sent", {
+            ...toConversationScopeLogMeta(scope),
+            aiModel,
+            latencyMs,
+            replyType: "text",
+            outputLength: body.length,
+        });
         return outbound;
     }
 

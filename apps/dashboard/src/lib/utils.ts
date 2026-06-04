@@ -22,3 +22,51 @@ export function formatDuration(seconds: number): string {
   if (hours > 0) return `${hours}j ${minutes}m`;
   return `${minutes}m`;
 }
+
+export interface ConversationScopeInfo {
+  rawContactId: string;
+  isScopedGroup: boolean;
+  scopeContactJid: string;
+  groupJid: string | null;
+  participantJid: string | null;
+}
+
+export function parseConversationScope(contactId: string): ConversationScopeInfo {
+  const [groupJid, participantJid] = contactId.split('::');
+
+  if (!participantJid) {
+    return {
+      rawContactId: contactId,
+      isScopedGroup: false,
+      scopeContactJid: contactId,
+      groupJid: null,
+      participantJid: null
+    };
+  }
+
+  return {
+    rawContactId: contactId,
+    isScopedGroup: true,
+    scopeContactJid: participantJid,
+    groupJid,
+    participantJid
+  };
+}
+
+export function extractPhoneFromJid(jid: string | undefined | null): string {
+  if (!jid) return 'Unknown';
+  return jid.split('@')[0] || jid;
+}
+
+export function formatConversationTitle(contactId: string, contactName?: string | null): string {
+  const scope = parseConversationScope(contactId);
+  if (contactName) return contactName;
+  return extractPhoneFromJid(scope.scopeContactJid);
+}
+
+export function formatConversationSubtitle(contactId: string): string | null {
+  const scope = parseConversationScope(contactId);
+  if (!scope.isScopedGroup || !scope.groupJid || !scope.participantJid) return null;
+
+  return `Member ${extractPhoneFromJid(scope.participantJid)} di grup ${extractPhoneFromJid(scope.groupJid)}`;
+}

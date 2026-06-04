@@ -4,15 +4,19 @@ import { ChatBubble, ScrollArea } from '@/components/ui';
 
 interface ChatWindowProps {
     title: string;
+    subtitle?: string | null;
     messages: Message[];
 }
 
-export function ChatWindow({ title, messages }: ChatWindowProps) {
+export function ChatWindow({ title, subtitle, messages }: ChatWindowProps) {
     return (
         <div className="flex min-h-0 flex-1 flex-col rounded-b-xl bg-white/85 dark:bg-slate-900/50 backdrop-blur-sm lg:rounded-b-none lg:rounded-r-xl">
             <div className="border-b border-border/60 dark:border-border/40 bg-white/60 dark:bg-slate-800/40 px-5 py-4 backdrop-blur-sm sm:px-6 sm:py-5">
                 <p className="text-sm font-semibold text-foreground">{title}</p>
-                <p className="mt-1 text-xs text-muted-foreground/80">{messages.length} pesan tersimpan</p>
+                <p className="mt-1 text-xs text-muted-foreground/80">
+                    {subtitle ? `${subtitle} • ` : ''}
+                    {messages.length} pesan tersimpan
+                </p>
             </div>
             <ScrollArea className="min-h-0 flex-1">
                 <div className="space-y-3 p-5 sm:p-6 lg:p-6">

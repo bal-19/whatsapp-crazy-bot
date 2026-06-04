@@ -6,7 +6,15 @@ import { MessageVolumeChart } from '@/components/features/analytics/MessageVolum
 import { WhatsAppQrCard } from '@/components/features/dashboard/WhatsAppQrCard';
 import { useBotStore } from '@/stores/botStore';
 import { useConversationStore } from '@/stores/conversationStore';
-import { formatDate } from '@/lib/utils';
+import { formatConversationSubtitle, formatConversationTitle, formatDate } from '@/lib/utils';
+
+const ACTIVE_COMMANDS = [
+    '/list atau /help untuk daftar command',
+    '/reset untuk reset percakapan scope aktif',
+    '/resetmemory untuk hapus memory personal scope aktif',
+    'Kirim gambar + caption untuk analisis gambar',
+    'Bilang "bicara dengan manusia" untuk handoff'
+];
 
 export function DashboardPage() {
     const { status, totalMessagesToday, analytics, queueSize, qrCode, isResettingAuth, loadAnalytics, resetAuth } =
@@ -89,10 +97,15 @@ export function DashboardPage() {
                             <div key={conversation.contact_id} className="rounded-[1.25rem] border border-white/70 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800 p-4 shadow-sm">
                                 <div className="flex items-center justify-between gap-3">
                                     <p className="truncate text-sm font-semibold text-foreground">
-                                        {conversation.contact_name ?? conversation.contact_id}
+                                        {formatConversationTitle(conversation.contact_id, conversation.contact_name)}
                                     </p>
                                     <span className="text-[11px] text-muted-foreground">{formatDate(conversation.last_message_at)}</span>
                                 </div>
+                                {formatConversationSubtitle(conversation.contact_id) ? (
+                                    <p className="mt-1 truncate text-[11px] text-emerald-700 dark:text-emerald-400">
+                                        {formatConversationSubtitle(conversation.contact_id)}
+                                    </p>
+                                ) : null}
                                 <p className="mt-2 truncate text-xs leading-relaxed text-muted-foreground">{conversation.last_message}</p>
                             </div>
                         ))}
@@ -123,6 +136,20 @@ export function DashboardPage() {
                         <div className="rounded-2xl bg-white/80 dark:bg-slate-800 p-4 leading-relaxed">
                             Semua konten halaman tetap sama, yang berubah hanya struktur visual dan hirarki informasinya.
                         </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Command Aktif</CardTitle>
+                        <CardDescription>Ringkasan fitur user-facing yang saat ini sudah tersedia di bot.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-2.5 text-sm text-slate-600 dark:text-slate-400">
+                        {ACTIVE_COMMANDS.map((command) => (
+                            <div key={command} className="rounded-2xl bg-white/80 dark:bg-slate-800 p-4 leading-relaxed">
+                                {command}
+                            </div>
+                        ))}
                     </CardContent>
                 </Card>
             </div>

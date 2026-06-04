@@ -63,7 +63,14 @@ export function LogsPage() {
                                 {log.level}
                             </span>
                             <span className="text-xs leading-relaxed text-muted-foreground">{formatDate(log.created_at)}</span>
-                            <span className="leading-relaxed text-card-foreground">{log.message}</span>
+                            <div className="space-y-2">
+                                <span className="block leading-relaxed text-card-foreground">{log.message}</span>
+                                {log.meta ? (
+                                    <pre className="overflow-auto rounded-2xl bg-slate-950/90 p-3 text-[11px] leading-relaxed text-slate-100">
+                                        {JSON.stringify(log.meta, null, 2)}
+                                    </pre>
+                                ) : null}
+                            </div>
                         </div>
                     ))}
                 </CardContent>

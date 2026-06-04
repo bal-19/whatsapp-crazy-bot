@@ -3,19 +3,14 @@ import { Card, CardContent } from '@/components/ui';
 import { ConversationList } from '@/components/features/conversations/ConversationList';
 import { ChatWindow } from '@/components/features/conversations/ChatWindow';
 import { useConversationStore } from '@/stores/conversationStore';
-
-// Helper: Extract phone number from JID format (6281234567890@s.whatsapp.net -> 6281234567890)
-function extractPhoneFromJid(jid: string | undefined): string {
-    if (!jid) return 'Unknown';
-    return jid.split('@')[0] || 'Unknown';
-}
+import { formatConversationSubtitle, formatConversationTitle } from '@/lib/utils';
 
 export function ConversationsPage() {
     const { conversations, activeContactId, messages, loadConversations, selectContact } = useConversationStore();
     const active = conversations.find((conversation) => conversation.contact_id === activeContactId);
 
-    // Display phone number only
-    const displayName = (active?.contact_name ? active.contact_name : extractPhoneFromJid(active?.contact_id));
+    const displayName = active ? formatConversationTitle(active.contact_id, active.contact_name) : 'Pilih percakapan';
+    const displaySubtitle = active ? formatConversationSubtitle(active.contact_id) : null;
 
     useEffect(() => {
         void loadConversations();
@@ -48,7 +43,8 @@ export function ConversationsPage() {
                     onSelect={(contactId) => void selectContact(contactId)}
                 />
                 <ChatWindow
-                    title={displayName ?? 'Pilih percakapan'}
+                    title={displayName}
+                    subtitle={displaySubtitle}
                     messages={activeContactId ? messages[activeContactId] ?? [] : []}
                 />
             </div>

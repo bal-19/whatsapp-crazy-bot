@@ -12,7 +12,7 @@
         "baseUrl": ".",
         "paths": {
             "@whatsapp-bot/shared": [
-                "../../packages/shared/dist/index.d.ts"
+                "../../packages/shared/src/index.ts"
             ]
         }
     },

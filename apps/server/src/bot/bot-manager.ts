@@ -242,12 +242,12 @@ export class BotManager {
         if (intent === "reset") {
             memory.clearSession(jid);
             await appDb.clearConversation(jid);
-            await this.sendAndLog(jid, ERROR_MESSAGES.reset, null, 0);
+            await this.sendAndLog(jid, ERROR_MESSAGES.reset, null, 0, message);
             return;
         }
 
         if (intent === "handoff") {
-            await this.sendAndLog(jid, ERROR_MESSAGES.handoff, null, 0);
+            await this.sendAndLog(jid, ERROR_MESSAGES.handoff, null, 0, message);
             return;
         }
 
@@ -264,6 +264,7 @@ export class BotManager {
             result.reply,
             result.aiModel,
             result.latencyMs,
+            message,
         );
     }
 
@@ -272,8 +273,13 @@ export class BotManager {
         body: string,
         aiModel: string | null,
         latencyMs: number | null,
+        quotedMessage?: proto.IWebMessageInfo,
     ): Promise<Message> {
-        await this.sock?.sendMessage(jid, { text: body });
+        await this.sock?.sendMessage(
+            jid,
+            { text: body },
+            quotedMessage ? { quoted: quotedMessage } : undefined,
+        );
         await appDb.upsertContact(jid);
         const outbound = await appDb.insertMessage({
             id: `bot-${Date.now()}-${crypto.randomUUID()}`,

@@ -37,6 +37,14 @@ Yang disarankan untuk versi awal:
 - memory dipakai sebagai context tambahan saat generate reply
 - sediakan command reset memory per user
 
+Status implementasi saat ini:
+
+- storage personal memory sudah tersedia
+- V1 hanya menyimpan `preferred_name` dan `favorite_topics`
+- memory sudah ikut masuk ke prompt sebagai summary
+- reset memory per scope sudah tersedia
+- memory diekstrak dari pesan eksplisit, belum dari inferensi bebas
+
 ## Aturan Kompatibilitas
 
 Agar tidak merusak fitur lain, personal memory V1 harus mengikuti aturan ini:

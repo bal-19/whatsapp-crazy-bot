@@ -32,6 +32,7 @@ import {
 import { getReplyPreview, type BotReply } from "../ai/reply-types.js";
 import { mediaService } from "../services/mediaService.js";
 import { createTextReply } from "../ai/reply-types.js";
+import { personalMemoryService } from "../services/personalMemoryService.js";
 
 export class BotManager {
     private sock: WASocket | null = null;
@@ -263,10 +264,13 @@ export class BotManager {
         if (!sanitized.isValid) return;
 
         const intent = detectIntent(sanitized.sanitized);
+        const currentPersonalMemorySummary =
+            await personalMemoryService.getSummary(scope.contactId);
         logService.write("info", "audit_intent_detected", {
             ...scopeMeta,
             messageId,
             intent,
+            personalMemorySummary: currentPersonalMemorySummary,
         });
         if (intent === "reset") {
             memory.clearSession(scope.contactId);
@@ -274,6 +278,24 @@ export class BotManager {
             await this.sendAndLog(
                 scope,
                 createTextReply(ERROR_MESSAGES.reset),
+                null,
+                0,
+                message,
+            );
+            return;
+        }
+
+        if (intent === "memory_reset") {
+            await personalMemoryService.clear(scope.contactId);
+            logService.write("info", "audit_memory_cleared", {
+                ...scopeMeta,
+                messageId,
+            });
+            await this.sendAndLog(
+                scope,
+                createTextReply(
+                    "Sip, aku lupain dulu hal-hal personal yang tadi kusimpan tentang kamu.",
+                ),
                 null,
                 0,
                 message,
@@ -290,6 +312,20 @@ export class BotManager {
                 message,
             );
             return;
+        }
+
+        const updatedMemories = await personalMemoryService.rememberFromMessage(
+            scope.contactId,
+            sanitized.sanitized,
+            messageId,
+        );
+        if (updatedMemories.length > 0) {
+            logService.write("info", "audit_memory_updated", {
+                ...scopeMeta,
+                messageId,
+                personalMemorySummary:
+                    await personalMemoryService.getSummary(scope.contactId),
+            });
         }
 
         await this.sock.sendPresenceUpdate("composing", scope.deliveryJid);

@@ -124,7 +124,7 @@ Catatan kompatibilitas:
 
 ## Batch 3: Personal Memory Ringan
 
-Status: `belum diimplementasi`
+Status: `sudah diimplementasi sebagian`
 
 Fitur:
 
@@ -138,6 +138,15 @@ Target hasil:
 - memory dipakai dalam prompt builder sebagai context tambahan
 - user bisa reset memory personal
 - audit log mencatat memory summary yang dipakai
+
+Implementasi saat ini:
+
+- extractor rule-based sudah tersedia di `apps/server/src/ai/personal-memory.ts`
+- storage personal memory sudah tersedia di adapter in-memory dan Supabase
+- migration baru `contact_memories` sudah ditambahkan
+- personal memory sudah disisipkan ke prompt builder
+- command reset memory sudah aktif lewat `memory_reset` intent
+- audit memory minimum sudah dicatat lewat `audit_memory_updated` dan `audit_memory_cleared`
 
 Komponen utama:
 

@@ -12,6 +12,11 @@ describe("detectIntent", () => {
         assert.equal(detectIntent("bicara dengan manusia"), "handoff");
     });
 
+    it("detects memory reset", () => {
+        assert.equal(detectIntent("/resetmemory"), "memory_reset");
+        assert.equal(detectIntent("tolong lupain aku dulu"), "memory_reset");
+    });
+
     it("returns normal by default", () => {
         assert.equal(detectIntent("halo"), "normal");
     });

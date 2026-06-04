@@ -15,6 +15,7 @@ import { ERROR_MESSAGES } from "./error-messages.js";
 import { logService } from "../services/logService.js";
 import { botConfigService } from "../services/botConfigService.js";
 import { createTextReply, type BotReply } from "./reply-types.js";
+import { personalMemoryService } from "../services/personalMemoryService.js";
 
 export interface GenerateReplyInput {
     contactId: string;
@@ -44,12 +45,15 @@ export async function generateBotReply(
     // Prioritize passed config, otherwise load from cached BotConfigService
     const config = input.config ?? (await botConfigService.getConfig());
     await ensureMemoryHydrated(input.contactId);
+    const personalMemorySummary =
+        await personalMemoryService.getSummary(input.contactId);
 
     const systemPrompt = buildSystemPrompt({
         botName: config.bot_name,
         persona: config.system_prompt,
         toneStyle: config.tone_style,
         contactName: input.contactName,
+        personalMemorySummary,
     });
 
     try {

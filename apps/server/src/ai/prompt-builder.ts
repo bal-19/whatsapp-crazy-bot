@@ -5,6 +5,7 @@ interface PromptContext {
     persona: string;
     toneStyle: BotConfig["tone_style"];
     contactName?: string | null;
+    personalMemorySummary?: string | null;
 }
 
 const TONE_GUIDES: Record<BotConfig["tone_style"], string> = {
@@ -49,5 +50,14 @@ ${TONE_GUIDES[ctx.toneStyle]}
 ${ctx.contactName ? `- Kamu sedang berbicara dengan: ${ctx.contactName}` : ""}
 `.trim();
 
-    return [coreRules, personaSection, contextSection].join("\n\n");
+    const personalMemorySection = ctx.personalMemorySummary
+        ? `
+## Memory Personal User
+${ctx.personalMemorySummary}
+`.trim()
+        : null;
+
+    return [coreRules, personaSection, contextSection, personalMemorySection]
+        .filter(Boolean)
+        .join("\n\n");
 }

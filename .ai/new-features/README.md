@@ -53,7 +53,7 @@ Daftar fitur:
 - `01-group-member-scoped-conversations.md`: conversation grup dipisah per member dalam grup
   Status: `sudah diimplementasi`
 - `02-personal-memory.md`: memory personal kecil-kecilan agar bot terasa lebih hidup
-  Status: `belum diimplementasi`
+  Status: `sudah diimplementasi`
 - `03-multimodal-replies.md`: balasan multimodal berupa teks + gambar/media
   Status: `sudah diimplementasi`
 - `04-audit-log.md`: audit log untuk melacak alur keputusan, prompt, dan hasil balasan bot

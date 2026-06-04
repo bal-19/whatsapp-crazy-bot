@@ -17,6 +17,7 @@ import type {
 } from '@whatsapp-bot/shared';
 import { env } from '../config/env.js';
 import { supabaseAdmin } from '../lib/supabase.js';
+import type { PersonalMemory } from '../ai/personal-memory.js';
 
 const DEFAULT_PERSONA = `Nama kamu adalah Ikmal, asisten AI yang helpful dengan vibe Gen Z.
 
@@ -96,6 +97,17 @@ interface SystemLogRow {
   created_at: string;
 }
 
+interface PersonalMemoryRow {
+  id: string;
+  contact_id: string;
+  memory_key: string;
+  memory_value: string;
+  confidence: number | null;
+  source_message_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 interface ConversationSummaryRow {
   contact_id: string;
   contact_name: string | null;
@@ -147,6 +159,9 @@ interface DatabaseAdapter {
   getConversation(contactId: string): Promise<ConversationDetail | null>;
   clearConversation(contactId: string): Promise<void>;
   getRecentHistory(contactId: string, limit?: number): Promise<Message[]>;
+  listPersonalMemories(contactId: string): Promise<PersonalMemory[]>;
+  upsertPersonalMemory(contactId: string, memory: PersonalMemory): Promise<void>;
+  clearPersonalMemories(contactId: string): Promise<void>;
   getTotalMessagesToday(): Promise<number>;
   getAnalyticsSummary(): Promise<AnalyticsSummary>;
   addLog(level: LogLevel, message: string, meta?: Record<string, unknown>): Promise<SystemLog>;
@@ -209,6 +224,18 @@ class AppDatabase {
     return this.adapter.getRecentHistory(contactId, limit);
   }
 
+  listPersonalMemories(contactId: string): Promise<PersonalMemory[]> {
+    return this.adapter.listPersonalMemories(contactId);
+  }
+
+  upsertPersonalMemory(contactId: string, memory: PersonalMemory): Promise<void> {
+    return this.adapter.upsertPersonalMemory(contactId, memory);
+  }
+
+  clearPersonalMemories(contactId: string): Promise<void> {
+    return this.adapter.clearPersonalMemories(contactId);
+  }
+
   getTotalMessagesToday(): Promise<number> {
     return this.adapter.getTotalMessagesToday();
   }
@@ -234,6 +261,7 @@ class InMemoryDatabase implements DatabaseAdapter {
   private config: BotConfig = { ...DEFAULT_CONFIG };
   private contacts = new Map<string, ContactRow>();
   private messages: MessageRow[] = [];
+  private personalMemories = new Map<string, PersonalMemoryRow[]>();
   private logs: SystemLog[] = [];
   private nextLogId = 1;
 
@@ -440,6 +468,40 @@ class InMemoryDatabase implements DatabaseAdapter {
       .slice(0, limit)
       .reverse()
       .map((message) => mapMessageRow(message, contactId));
+  }
+
+  async listPersonalMemories(contactId: string): Promise<PersonalMemory[]> {
+    return [...(this.personalMemories.get(contactId) ?? [])]
+      .sort((a, b) => Date.parse(a.updated_at) - Date.parse(b.updated_at))
+      .map(mapPersonalMemoryRow);
+  }
+
+  async upsertPersonalMemory(contactId: string, memory: PersonalMemory): Promise<void> {
+    const current = [...(this.personalMemories.get(contactId) ?? [])];
+    const now = new Date().toISOString();
+    const existingIndex = current.findIndex((row) => row.memory_key === memory.key);
+    const nextRow: PersonalMemoryRow = {
+      id: existingIndex >= 0 ? current[existingIndex]!.id : crypto.randomUUID(),
+      contact_id: contactId,
+      memory_key: memory.key,
+      memory_value: memory.value,
+      confidence: memory.confidence,
+      source_message_id: memory.sourceMessageId ?? null,
+      created_at: existingIndex >= 0 ? current[existingIndex]!.created_at : now,
+      updated_at: now
+    };
+
+    if (existingIndex >= 0) {
+      current[existingIndex] = nextRow;
+    } else {
+      current.push(nextRow);
+    }
+
+    this.personalMemories.set(contactId, current);
+  }
+
+  async clearPersonalMemories(contactId: string): Promise<void> {
+    this.personalMemories.delete(contactId);
   }
 
   async getTotalMessagesToday(): Promise<number> {
@@ -744,6 +806,53 @@ class SupabaseDatabase implements DatabaseAdapter {
       .map((row) => mapMessageRow(row, contact.whatsapp_jid));
   }
 
+  async listPersonalMemories(contactId: string): Promise<PersonalMemory[]> {
+    await this.ready;
+    const contact = await this.findContactByJid(contactId);
+    if (!contact) return [];
+
+    const { data, error } = await supabaseAdmin!
+      .from('contact_memories')
+      .select('*')
+      .eq('contact_id', contact.id)
+      .order('updated_at', { ascending: true });
+
+    assertSupabaseSuccess(error, 'Gagal mengambil personal memory dari Supabase.');
+    return ((data ?? []) as PersonalMemoryRow[]).map(mapPersonalMemoryRow);
+  }
+
+  async upsertPersonalMemory(contactId: string, memory: PersonalMemory): Promise<void> {
+    await this.ready;
+    const contact = await this.ensureContact(contactId);
+
+    const payload = {
+      contact_id: contact.id,
+      memory_key: memory.key,
+      memory_value: memory.value,
+      confidence: memory.confidence ?? null,
+      source_message_id: memory.sourceMessageId ?? null
+    };
+
+    const { error } = await supabaseAdmin!
+      .from('contact_memories')
+      .upsert(payload, { onConflict: 'contact_id,memory_key' });
+
+    assertSupabaseSuccess(error, 'Gagal menyimpan personal memory ke Supabase.');
+  }
+
+  async clearPersonalMemories(contactId: string): Promise<void> {
+    await this.ready;
+    const contact = await this.findContactByJid(contactId);
+    if (!contact) return;
+
+    const { error } = await supabaseAdmin!
+      .from('contact_memories')
+      .delete()
+      .eq('contact_id', contact.id);
+
+    assertSupabaseSuccess(error, 'Gagal menghapus personal memory dari Supabase.');
+  }
+
   async getTotalMessagesToday(): Promise<number> {
     await this.ready;
     const { start, end } = getWibDayRange();
@@ -981,6 +1090,17 @@ function mapSystemLogRow(row: SystemLogRow): SystemLog {
     message: row.message ?? row.event,
     meta: row.meta ?? null,
     created_at: row.created_at
+  };
+}
+
+function mapPersonalMemoryRow(row: PersonalMemoryRow): PersonalMemory {
+  return {
+    key: row.memory_key as PersonalMemory['key'],
+    value: row.memory_value,
+    confidence: typeof row.confidence === 'number' ? row.confidence : 0,
+    sourceMessageId: row.source_message_id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
   };
 }
 

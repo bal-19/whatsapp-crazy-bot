@@ -130,6 +130,7 @@ Tidak ada `off_hours` aktif di implementasi sekarang.
 Trigger:
 
 - `/reset` atau `mulai dari awal` -> clear memory + clear conversation di database untuk conversation scope aktif
+- `/resetmemory`, `/lupainaku`, atau `lupain aku` -> clear personal memory untuk conversation scope aktif
 - `bicara dengan manusia`, `hubungi admin`, `minta tolong orang` -> kirim template handoff
 
 ## 5.4 Conversation Scope
@@ -168,6 +169,25 @@ Catatan grup:
 
 - key memory memakai conversation scope
 - pesan dari member berbeda dalam grup yang sama tidak berbagi memory session
+
+## 6.1 Personal Memory
+
+Selain conversation memory jangka pendek, bot sekarang punya personal memory ringan untuk fakta eksplisit per user/scope.
+
+Komponen:
+
+- [apps/server/src/ai/personal-memory.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/ai/personal-memory.ts:1)
+- [apps/server/src/services/personalMemoryService.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/services/personalMemoryService.ts:1)
+
+Perilaku V1:
+
+- memory mengikuti `contact_id` hasil conversation scope
+- memory hanya disimpan dari pola eksplisit
+- key yang aktif saat ini:
+  - `preferred_name`
+  - `favorite_topics`
+- memory disisipkan ke prompt sebagai context tambahan
+- personal memory bisa dihapus dengan command reset memory
 
 ## 7. Input Sanitization
 
@@ -280,6 +300,8 @@ Event penting yang muncul di kode:
 - `conversation_scope_group_fallback`
 - `audit_message_received`
 - `audit_intent_detected`
+- `audit_memory_updated`
+- `audit_memory_cleared`
 - `audit_reply_sent`
 - `gemini_error`
 

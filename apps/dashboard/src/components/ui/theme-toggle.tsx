@@ -26,7 +26,7 @@ export function ThemeToggle() {
                     <span className="sr-only">Toggle theme</span>
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuContent align="end" className="w-40 z-30">
                 <DropdownMenuCheckboxItem
                     checked={theme === 'light'}
                     onCheckedChange={() => setTheme('light')}

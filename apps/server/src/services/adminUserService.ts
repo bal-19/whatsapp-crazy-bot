@@ -6,11 +6,6 @@
 import { supabaseAdmin } from "../lib/supabase.js";
 import { hashPassword } from "../auth/jwt.js";
 
-// Type guard to ensure supabaseAdmin is not null
-if (!supabaseAdmin) {
-    throw new Error("Supabase admin client is not initialized");
-}
-
 export interface AdminUser {
     id: string;
     username: string;
@@ -41,6 +36,7 @@ export interface UpdateAdminUserInput {
 export async function createAdminUser(
     input: CreateAdminUserInput,
 ): Promise<AdminUser> {
+    assertSupabaseAdmin();
     const passwordHash = await hashPassword(input.password);
 
     const { data, error } = await supabaseAdmin!
@@ -67,6 +63,7 @@ export async function createAdminUser(
 export async function getAdminUserByUsername(
     username: string,
 ): Promise<AdminUser | null> {
+    assertSupabaseAdmin();
     const { data, error } = await supabaseAdmin!
         .from("admin_users")
         .select(
@@ -94,6 +91,7 @@ export async function updateAdminUser(
     userId: string,
     input: UpdateAdminUserInput,
 ): Promise<AdminUser> {
+    assertSupabaseAdmin();
     const updates: Record<string, any> = {};
 
     if (input.password) {
@@ -126,6 +124,7 @@ export async function updateAdminUser(
  * @param userId - User ID to delete
  */
 export async function deleteAdminUser(userId: string): Promise<void> {
+    assertSupabaseAdmin();
     const { error } = await supabaseAdmin!
         .from("admin_users")
         .delete()
@@ -139,6 +138,7 @@ export async function deleteAdminUser(userId: string): Promise<void> {
  * @returns Array of admin users (without password hashes)
  */
 export async function listAdminUsers(): Promise<AdminUser[]> {
+    assertSupabaseAdmin();
     const { data, error } = await supabaseAdmin!
         .from("admin_users")
         .select(
@@ -156,6 +156,8 @@ export async function listAdminUsers(): Promise<AdminUser[]> {
  * @param userId - User ID to update
  */
 export async function updateLastLoginAt(userId: string): Promise<void> {
+    if (!supabaseAdmin) return;
+
     const { error } = await supabaseAdmin!
         .from("admin_users")
         .update({ last_login_at: new Date().toISOString() })
@@ -163,4 +165,10 @@ export async function updateLastLoginAt(userId: string): Promise<void> {
 
     if (error)
         throw new Error(`Failed to update last_login_at: ${error.message}`);
+}
+
+function assertSupabaseAdmin(): void {
+    if (!supabaseAdmin) {
+        throw new Error("Supabase admin client is not initialized");
+    }
 }

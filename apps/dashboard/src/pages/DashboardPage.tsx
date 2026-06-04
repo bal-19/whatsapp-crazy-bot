@@ -3,12 +3,14 @@ import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { StatCard, Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
 import { MessageVolumeChart } from '@/components/features/analytics/MessageVolumeChart';
+import { WhatsAppQrCard } from '@/components/features/dashboard/WhatsAppQrCard';
 import { useBotStore } from '@/stores/botStore';
 import { useConversationStore } from '@/stores/conversationStore';
 import { formatDate } from '@/lib/utils';
 
 export function DashboardPage() {
-    const { status, totalMessagesToday, analytics, queueSize, loadAnalytics } = useBotStore();
+    const { status, totalMessagesToday, analytics, queueSize, qrCode, isResettingAuth, loadAnalytics, resetAuth } =
+        useBotStore();
     const { conversations, loadConversations } = useConversationStore();
 
     useEffect(() => {
@@ -30,7 +32,7 @@ export function DashboardPage() {
                 <StatCard label="Avg Response" value={`${analytics?.avg_response_time_ms ?? 0} ms`} icon={Timer} />
             </div>
 
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_360px]">
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
                 <Card>
                     <CardHeader>
                         <CardTitle>Engagement Trend 7 Hari</CardTitle>
@@ -61,6 +63,15 @@ export function DashboardPage() {
                         ))}
                     </CardContent>
                 </Card>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+                <WhatsAppQrCard
+                    status={status}
+                    qrCode={qrCode}
+                    isResettingAuth={isResettingAuth}
+                    onResetAuth={() => void resetAuth()}
+                />
             </div>
         </div>
     );

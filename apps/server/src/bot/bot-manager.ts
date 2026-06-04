@@ -3,11 +3,11 @@ import makeWASocket, {
     Browsers,
     DisconnectReason,
     fetchLatestBaileysVersion,
-    useMultiFileAuthState,
     type WASocket,
     type proto,
 } from "@whiskeysockets/baileys";
 import qrcode from "qrcode-terminal";
+import QRCode from "qrcode";
 import type { BotStatus, Message } from "@whatsapp-bot/shared";
 import { env } from "../config/env.js";
 import { appDb } from "../db/database.js";
@@ -23,6 +23,7 @@ import { detectIntent, shouldBotRespond } from "../ai/intent-detector.js";
 import { ERROR_MESSAGES } from "../ai/error-messages.js";
 import { memory } from "../ai/conversation-memory.js";
 import { generateBotReply } from "../ai/ai-service.js";
+import { createWhatsAppAuthState } from "./whatsapp-auth-state.js";
 
 export class BotManager {
     private sock: WASocket | null = null;
@@ -30,6 +31,9 @@ export class BotManager {
     private reconnectAttempts = 0;
     private startedAt = Date.now();
     private isStarting = false;
+    private isResettingAuth = false;
+    private clearAuthState: (() => Promise<void>) | null = null;
+    private latestQrCode: string | null = null;
 
     getStatus(): BotStatus {
         return this.status;
@@ -39,18 +43,22 @@ export class BotManager {
         return Math.floor((Date.now() - this.startedAt) / 1000);
     }
 
+    getQrCode(): string | null {
+        return this.latestQrCode;
+    }
+
     async start(): Promise<void> {
         if (this.isStarting) return;
         this.isStarting = true;
+        this.latestQrCode = null;
         this.setStatus("connecting");
 
         try {
             // Initialize bot config from database
             await botConfigService.initialize();
 
-            const { state, saveCreds } = await useMultiFileAuthState(
-                env.WA_AUTH_DIR,
-            );
+            const { state, saveCreds, clear } = await createWhatsAppAuthState();
+            this.clearAuthState = clear;
             const { version } = await fetchLatestBaileysVersion();
 
             this.sock = makeWASocket({
@@ -90,6 +98,24 @@ export class BotManager {
         await this.start();
     }
 
+    async resetAuth(): Promise<void> {
+        logService.write("warn", "bot_reset_auth_requested");
+        this.isResettingAuth = true;
+        this.reconnectAttempts = 0;
+        this.latestQrCode = null;
+        this.setStatus("disconnected");
+
+        try {
+            this.sock?.end(undefined);
+            this.sock = null;
+            await this.clearAuthState?.();
+        } finally {
+            this.isResettingAuth = false;
+        }
+
+        await this.start();
+    }
+
     private async handleConnectionUpdate(update: {
         connection?: string;
         qr?: string;
@@ -97,12 +123,22 @@ export class BotManager {
     }): Promise<void> {
         if (update.qr) {
             qrcode.generate(update.qr, { small: true });
+            this.latestQrCode = await QRCode.toDataURL(update.qr, {
+                errorCorrectionLevel: "M",
+                margin: 1,
+                width: 320,
+            });
+            emitBotStatus({
+                status: this.status,
+                qr_code: this.latestQrCode,
+            });
             logService.write("info", "bot_qr_generated");
         }
 
         if (update.connection === "open") {
             this.reconnectAttempts = 0;
             this.startedAt = Date.now();
+            this.latestQrCode = null;
             this.setStatus("connected");
             logService.write("info", "bot_connected");
             return;
@@ -117,7 +153,13 @@ export class BotManager {
             this.setStatus("disconnected");
             logService.write("warn", "bot_disconnected", { statusCode });
 
+            if (this.isResettingAuth) {
+                return;
+            }
+
             if (statusCode === DisconnectReason.loggedOut) {
+                await this.clearAuthState?.();
+                this.latestQrCode = null;
                 logService.write("error", "bot_logged_out");
                 return;
             }
@@ -248,7 +290,7 @@ export class BotManager {
 
     private setStatus(status: BotStatus): void {
         this.status = status;
-        emitBotStatus(status);
+        emitBotStatus({ status, qr_code: this.latestQrCode });
     }
 }
 

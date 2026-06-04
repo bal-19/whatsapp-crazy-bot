@@ -17,6 +17,7 @@ export interface BotStatusResponse {
     uptime_seconds: number;
     total_messages_today: number;
     queue_size: number;
+    qr_code: string | null;
 }
 
 export interface Contact {

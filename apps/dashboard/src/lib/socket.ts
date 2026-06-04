@@ -12,8 +12,8 @@ export const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:30
   reconnectionAttempts: 5
 });
 
-socket.on('bot:status_changed', (data: { status: BotStatus }) => {
-  useBotStore.getState().setStatus(data.status);
+socket.on('bot:status_changed', (data: { status: BotStatus; qr_code: string | null }) => {
+  useBotStore.getState().setStatus(data.status, data.qr_code);
 });
 
 socket.on('message:new', (data: { contactId: string; message: Message }) => {

@@ -5,6 +5,11 @@ import { env } from '../config/env.js';
 
 let io: Server | null = null;
 
+export interface BotStatusPayload {
+  status: BotStatus;
+  qr_code: string | null;
+}
+
 export function initRealtime(server: HttpServer): Server {
   io = new Server(server, {
     cors: {
@@ -16,8 +21,8 @@ export function initRealtime(server: HttpServer): Server {
   return io;
 }
 
-export function emitBotStatus(status: BotStatus): void {
-  io?.emit('bot:status_changed', { status });
+export function emitBotStatus(payload: BotStatusPayload): void {
+  io?.emit('bot:status_changed', payload);
 }
 
 export function emitNewMessage(contactId: string, message: Message): void {

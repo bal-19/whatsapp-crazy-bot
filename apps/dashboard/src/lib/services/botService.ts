@@ -9,5 +9,9 @@ export const botService = {
   async restart(): Promise<BotStatusResponse> {
     const response = await api.post<BotStatusResponse>('/bot/restart');
     return response.data;
+  },
+  async resetAuth(): Promise<BotStatusResponse> {
+    const response = await api.post<BotStatusResponse>('/bot/reset-auth');
+    return response.data;
   }
 };

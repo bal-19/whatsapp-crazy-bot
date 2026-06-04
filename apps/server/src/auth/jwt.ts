@@ -23,9 +23,11 @@ export async function verifyLogin(
     password: string,
 ): Promise<string | null> {
     try {
-        // Query admin user from database
         if (!supabaseAdmin) {
-            throw new Error("Supabase client not initialized");
+            const fallbackMatch =
+                username === env.DASHBOARD_USERNAME &&
+                password === env.DASHBOARD_PASSWORD;
+            return fallbackMatch ? "local-admin" : null;
         }
 
         const { data: user, error } = await supabaseAdmin

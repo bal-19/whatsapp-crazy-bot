@@ -58,6 +58,7 @@ export function createApiRouter(): Router {
                 uptime_seconds: botManager.getUptimeSeconds(),
                 total_messages_today: await appDb.getTotalMessagesToday(),
                 queue_size: getQueueSize(),
+                qr_code: botManager.getQrCode(),
             });
         }),
     );
@@ -161,6 +162,20 @@ export function createApiRouter(): Router {
         asyncHandler(async (_req, res) => {
             await botManager.restart();
             res.status(202).json({ status: botManager.getStatus() });
+        }),
+    );
+
+    router.post(
+        "/bot/reset-auth",
+        asyncHandler(async (_req, res) => {
+            await botManager.resetAuth();
+            res.status(202).json({
+                status: botManager.getStatus(),
+                uptime_seconds: botManager.getUptimeSeconds(),
+                total_messages_today: await appDb.getTotalMessagesToday(),
+                queue_size: getQueueSize(),
+                qr_code: botManager.getQrCode(),
+            });
         }),
     );
 

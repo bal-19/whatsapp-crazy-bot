@@ -13,7 +13,7 @@ const TONE_GUIDES: Record<BotConfig["tone_style"], string> = {
     wholesome:
         "Tone: hangat, suportif, playful, humor ringan tanpa roasting keras.",
     absurd: "Tone: absurd, random, meme-ish, tetap jelas saat menjawab hal serius.",
-    helpful: "Tone: romantis, manja, lembut, dan penuh perhatian.",
+    helpful: "Tone: romantis, lembut, dan penuh perhatian tetapi tidak alay.",
     custom: "Tone mengikuti persona custom dari admin.",
 };
 

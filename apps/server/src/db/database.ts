@@ -105,6 +105,12 @@ interface ConversationSummaryRow {
   avg_response_time_ms: number | null;
 }
 
+interface DailyMessageVolume {
+  date: string;
+  label: string;
+  messages: number;
+}
+
 function hasDisplayNameValue(value?: string | null): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
@@ -445,6 +451,7 @@ class InMemoryDatabase implements DatabaseAdapter {
   async getAnalyticsSummary(): Promise<AnalyticsSummary> {
     const { start, end } = getWibDayRange();
     const weekStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const dailyMessageVolume = buildDailyMessageVolumeFromRows(this.messages);
 
     const messagesToday = this.messages.filter((message) => {
       const createdAt = Date.parse(message.created_at);
@@ -478,7 +485,8 @@ class InMemoryDatabase implements DatabaseAdapter {
               outboundWithLatency.reduce((total, message) => total + (message.latency_ms ?? 0), 0) /
                 outboundWithLatency.length
             ),
-      gemini_errors_today: geminiErrorsToday
+      gemini_errors_today: geminiErrorsToday,
+      daily_message_volume: dailyMessageVolume
     };
   }
 
@@ -750,13 +758,16 @@ class SupabaseDatabase implements DatabaseAdapter {
     await this.ready;
     const { start, end } = getWibDayRange();
     const weekStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const dailyRanges = getLastWibDayRanges(7);
+    const earliestRangeStart = dailyRanges[0]?.start.toISOString() ?? start.toISOString();
 
     const [
       messagesTodayResult,
       messagesThisWeekResult,
       activeContactsResult,
       outboundLatencyResult,
-      geminiErrorsResult
+      geminiErrorsResult,
+      dailyVolumeResult
     ] = await Promise.all([
       supabaseAdmin!
         .from('messages')
@@ -783,7 +794,11 @@ class SupabaseDatabase implements DatabaseAdapter {
         .eq('level', 'error')
         .ilike('message', '%gemini%')
         .gte('created_at', start.toISOString())
-        .lt('created_at', end.toISOString())
+        .lt('created_at', end.toISOString()),
+      supabaseAdmin!
+        .from('messages')
+        .select('created_at')
+        .gte('created_at', earliestRangeStart)
     ]);
 
     assertSupabaseSuccess(messagesTodayResult.error, 'Gagal mengambil analytics messages today.');
@@ -791,10 +806,14 @@ class SupabaseDatabase implements DatabaseAdapter {
     assertSupabaseSuccess(activeContactsResult.error, 'Gagal mengambil analytics active contacts.');
     assertSupabaseSuccess(outboundLatencyResult.error, 'Gagal mengambil analytics response time.');
     assertSupabaseSuccess(geminiErrorsResult.error, 'Gagal mengambil analytics Gemini errors.');
+    assertSupabaseSuccess(dailyVolumeResult.error, 'Gagal mengambil analytics volume harian.');
 
     const latencies = (outboundLatencyResult.data ?? [])
       .map((row) => row.latency_ms)
       .filter((value): value is number => typeof value === 'number');
+    const dailyMessageVolume = buildDailyMessageVolumeFromTimestamps(
+      (dailyVolumeResult.data ?? []).map((row) => row.created_at)
+    );
 
     return {
       messages_today: messagesTodayResult.count ?? 0,
@@ -802,7 +821,8 @@ class SupabaseDatabase implements DatabaseAdapter {
       active_contacts_today: new Set((activeContactsResult.data ?? []).map((row) => row.contact_id)).size,
       avg_response_time_ms:
         latencies.length === 0 ? 0 : Math.round(latencies.reduce((total, value) => total + value, 0) / latencies.length),
-      gemini_errors_today: geminiErrorsResult.count ?? 0
+      gemini_errors_today: geminiErrorsResult.count ?? 0,
+      daily_message_volume: dailyMessageVolume
     };
   }
 
@@ -981,6 +1001,56 @@ function getWibDayRange(now = new Date()): { start: Date; end: Date } {
     start: startUtc,
     end: new Date(startUtc.getTime() + 24 * 60 * 60 * 1000)
   };
+}
+
+function getLastWibDayRanges(days: number, now = new Date()): Array<{ start: Date; end: Date; date: string; label: string }> {
+  const todayRange = getWibDayRange(now);
+
+  return Array.from({ length: days }, (_, index) => {
+    const offset = days - 1 - index;
+    const start = new Date(todayRange.start.getTime() - offset * 24 * 60 * 60 * 1000);
+    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+
+    return {
+      start,
+      end,
+      date: formatWibDateKey(start),
+      label: offset === 0 ? 'Hari ini' : formatWibDayLabel(start)
+    };
+  });
+}
+
+function buildDailyMessageVolumeFromRows(messages: MessageRow[]): DailyMessageVolume[] {
+  return buildDailyMessageVolumeFromTimestamps(messages.map((message) => message.created_at));
+}
+
+function buildDailyMessageVolumeFromTimestamps(timestamps: string[]): DailyMessageVolume[] {
+  const ranges = getLastWibDayRanges(7);
+
+  return ranges.map((range) => ({
+    date: range.date,
+    label: range.label,
+    messages: timestamps.filter((timestamp) => {
+      const createdAt = Date.parse(timestamp);
+      return createdAt >= range.start.getTime() && createdAt < range.end.getTime();
+    }).length
+  }));
+}
+
+function formatWibDateKey(date: Date): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(date);
+}
+
+function formatWibDayLabel(date: Date): string {
+  return new Intl.DateTimeFormat('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    weekday: 'short'
+  }).format(date);
 }
 
 const adapter = env.NODE_ENV === 'test' ? new InMemoryDatabase() : new SupabaseDatabase();

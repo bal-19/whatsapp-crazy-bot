@@ -36,7 +36,7 @@ export function AnalyticsPage() {
                     <CardTitle>Message Volume</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <MessageVolumeChart messagesToday={analytics?.messages_today ?? 0} />
+                    <MessageVolumeChart data={analytics?.daily_message_volume ?? []} />
                 </CardContent>
             </Card>
         </div>

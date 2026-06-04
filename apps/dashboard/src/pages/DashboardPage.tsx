@@ -67,10 +67,10 @@ export function DashboardPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Engagement Trend 7 Hari</CardTitle>
-                        <CardDescription>Perkiraan sebaran volume pesan berdasarkan aktivitas hari ini.</CardDescription>
+                        <CardDescription>Volume pesan aktual untuk 7 hari terakhir.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <MessageVolumeChart messagesToday={analytics?.messages_today ?? totalMessagesToday} />
+                        <MessageVolumeChart data={analytics?.daily_message_volume ?? []} />
                     </CardContent>
                 </Card>
 

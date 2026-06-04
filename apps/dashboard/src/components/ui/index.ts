@@ -1,4 +1,5 @@
 // Re-export all UI components for easier imports
+export * from "./alert-dialog";
 export * from "./badge";
 export * from "./button";
 export * from "./card";

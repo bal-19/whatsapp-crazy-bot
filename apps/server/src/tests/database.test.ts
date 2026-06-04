@@ -56,4 +56,27 @@ describe('appDb personal memories', () => {
     await appDb.clearPersonalMemories(contactId);
     assert.deepEqual(await appDb.listPersonalMemories(contactId), []);
   });
+
+  it('purges operational data without touching preserved domains', async () => {
+    const contactId = `purge-${Date.now()}@s.whatsapp.net`;
+
+    await appDb.upsertContact(contactId, 'Purge Test');
+    await appDb.insertMessage({
+      id: `msg-${Date.now()}`,
+      contact_id: contactId,
+      direction: 'inbound',
+      body: 'halo'
+    });
+    await appDb.upsertPersonalMemory(contactId, {
+      key: 'preferred_name',
+      value: 'Purge',
+      confidence: 0.9
+    });
+
+    const summary = await appDb.purgeOperationalData();
+    assert.equal(summary.contactsDeleted >= 1, true);
+    assert.equal(summary.messagesDeleted >= 1, true);
+    assert.equal(summary.memoriesDeleted >= 1, true);
+    assert.deepEqual(await appDb.listContacts(), []);
+  });
 });

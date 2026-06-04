@@ -162,6 +162,11 @@ interface DatabaseAdapter {
   listPersonalMemories(contactId: string): Promise<PersonalMemory[]>;
   upsertPersonalMemory(contactId: string, memory: PersonalMemory): Promise<void>;
   clearPersonalMemories(contactId: string): Promise<void>;
+  purgeOperationalData(): Promise<{
+    contactsDeleted: number;
+    messagesDeleted: number;
+    memoriesDeleted: number;
+  }>;
   getTotalMessagesToday(): Promise<number>;
   getAnalyticsSummary(): Promise<AnalyticsSummary>;
   addLog(level: LogLevel, message: string, meta?: Record<string, unknown>): Promise<SystemLog>;
@@ -234,6 +239,14 @@ class AppDatabase {
 
   clearPersonalMemories(contactId: string): Promise<void> {
     return this.adapter.clearPersonalMemories(contactId);
+  }
+
+  purgeOperationalData(): Promise<{
+    contactsDeleted: number;
+    messagesDeleted: number;
+    memoriesDeleted: number;
+  }> {
+    return this.adapter.purgeOperationalData();
   }
 
   getTotalMessagesToday(): Promise<number> {
@@ -502,6 +515,29 @@ class InMemoryDatabase implements DatabaseAdapter {
 
   async clearPersonalMemories(contactId: string): Promise<void> {
     this.personalMemories.delete(contactId);
+  }
+
+  async purgeOperationalData(): Promise<{
+    contactsDeleted: number;
+    messagesDeleted: number;
+    memoriesDeleted: number;
+  }> {
+    const contactsDeleted = this.contacts.size;
+    const messagesDeleted = this.messages.length;
+    const memoriesDeleted = [...this.personalMemories.values()].reduce(
+      (total, rows) => total + rows.length,
+      0
+    );
+
+    this.contacts.clear();
+    this.messages = [];
+    this.personalMemories.clear();
+
+    return {
+      contactsDeleted,
+      messagesDeleted,
+      memoriesDeleted
+    };
   }
 
   async getTotalMessagesToday(): Promise<number> {
@@ -851,6 +887,36 @@ class SupabaseDatabase implements DatabaseAdapter {
       .eq('contact_id', contact.id);
 
     assertSupabaseSuccess(error, 'Gagal menghapus personal memory dari Supabase.');
+  }
+
+  async purgeOperationalData(): Promise<{
+    contactsDeleted: number;
+    messagesDeleted: number;
+    memoriesDeleted: number;
+  }> {
+    await this.ready;
+
+    const [contactsCount, messagesCount, memoriesCount] = await Promise.all([
+      supabaseAdmin!.from('contacts').select('id', { count: 'exact', head: true }),
+      supabaseAdmin!.from('messages').select('id', { count: 'exact', head: true }),
+      supabaseAdmin!.from('contact_memories').select('id', { count: 'exact', head: true })
+    ]);
+
+    assertSupabaseSuccess(contactsCount.error, 'Gagal menghitung contact sebelum purge.');
+    assertSupabaseSuccess(messagesCount.error, 'Gagal menghitung messages sebelum purge.');
+    assertSupabaseSuccess(memoriesCount.error, 'Gagal menghitung personal memory sebelum purge.');
+
+    const { error } = await supabaseAdmin!.from('contacts').delete().neq('id', '');
+    assertSupabaseSuccess(
+      error,
+      'Gagal menghapus data operasional dari Supabase.'
+    );
+
+    return {
+      contactsDeleted: contactsCount.count ?? 0,
+      messagesDeleted: messagesCount.count ?? 0,
+      memoriesDeleted: memoriesCount.count ?? 0
+    };
   }
 
   async getTotalMessagesToday(): Promise<number> {

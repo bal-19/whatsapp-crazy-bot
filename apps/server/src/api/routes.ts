@@ -15,6 +15,8 @@ import { botManager } from "../bot/bot-manager.js";
 import { getQueueSize } from "../ai/rate-limiter.js";
 import { generateBotReply } from "../ai/ai-service.js";
 import { getReplyPreview } from "../ai/reply-types.js";
+import { memory } from "../ai/conversation-memory.js";
+import { emitAnalyticsUpdate } from "../realtime/socket.js";
 
 export function createApiRouter(): Router {
     const router = Router();
@@ -228,6 +230,27 @@ export function createApiRouter(): Router {
                     : undefined;
             const limit = numberQuery(req.query.limit, 100);
             res.json({ data: await appDb.listLogs(level, limit) });
+        }),
+    );
+
+    router.post(
+        "/maintenance/purge-operational-data",
+        asyncHandler(async (_req, res) => {
+            const summary = await appDb.purgeOperationalData();
+            memory.clearAll();
+            const analytics = await appDb.getAnalyticsSummary();
+            emitAnalyticsUpdate(analytics);
+            await appDb.addLog("warn", "operational_data_purged", summary);
+
+            res.status(202).json({
+                ...summary,
+                preserved_tables: [
+                    "admin_users",
+                    "bot_settings",
+                    "system_logs",
+                    "whatsapp_auth_state",
+                ],
+            });
         }),
     );
 

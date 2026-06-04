@@ -28,8 +28,8 @@ export function ConversationList({ conversations, activeContactId, onSelect }: C
     );
 
     return (
-        <div className="flex h-full flex-col rounded-t-xl bg-white/85 lg:rounded-l-xl lg:rounded-tr-none overflow-hidden">
-            <div className="border-b border-border/40 bg-white/60 p-4 sm:p-5 flex-shrink-0">
+        <div className="flex h-full flex-col rounded-t-xl bg-white/85 dark:bg-slate-900/50 lg:rounded-l-xl lg:rounded-tr-none overflow-hidden">
+            <div className="border-b border-border/40 dark:border-border/30 bg-white/60 dark:bg-slate-800/40 p-4 sm:p-5 flex-shrink-0">
                 <div className="mb-4">
                     <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Inbox</p>
                     <h2 className="mt-1 text-base font-bold text-foreground">Percakapan</h2>
@@ -37,7 +37,7 @@ export function ConversationList({ conversations, activeContactId, onSelect }: C
                 <div className="relative">
                     <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-muted-foreground/60" />
                     <Input
-                        className="rounded-lg border-white/80 bg-white/90 pl-10 text-sm h-9"
+                        className="rounded-lg border-white/80 dark:border-slate-700 bg-white/90 dark:bg-slate-800 pl-10 text-sm h-9"
                         placeholder="Cari nama atau nomor"
                         value={query}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
@@ -51,10 +51,10 @@ export function ConversationList({ conversations, activeContactId, onSelect }: C
                         type="button"
                         onClick={() => onSelect(conversation.contact_id)}
                         className={cn(
-                            'block w-full rounded-lg border border-white/60 px-4 py-3 text-left transition-all sm:px-4 sm:py-3.5',
+                            'block w-full rounded-lg border border-white/60 dark:border-slate-700/50 px-4 py-3 text-left transition-all sm:px-4 sm:py-3.5',
                             activeContactId === conversation.contact_id
-                                ? 'bg-emerald-50/80 border-emerald-200 shadow-sm'
-                                : 'hover:bg-emerald-50/50 hover:border-emerald-100/70'
+                                ? 'bg-emerald-50/80 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-600/30 shadow-sm'
+                                : 'hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30 hover:border-emerald-100/70 dark:hover:border-emerald-600/30'
                         )}
                     >
                         <div className="flex items-center justify-between gap-2">
@@ -64,7 +64,7 @@ export function ConversationList({ conversations, activeContactId, onSelect }: C
                             <span className="shrink-0 text-[11px] text-muted-foreground/70">{formatDate(conversation.last_message_at)}</span>
                         </div>
                         <p className="mt-1.5 truncate text-xs text-muted-foreground/80">{conversation.last_message}</p>
-                        <div className="mt-2.5 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                        <div className="mt-2.5 inline-flex rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:text-slate-300">
                             {conversation.message_count} pesan
                         </div>
                     </button>

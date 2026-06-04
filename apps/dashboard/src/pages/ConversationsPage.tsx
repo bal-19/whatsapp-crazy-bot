@@ -41,7 +41,7 @@ export function ConversationsPage() {
                     </div>
                 </CardContent>
             </Card>
-            <div className="min-h-0 flex-1 grid grid-cols-1 overflow-hidden rounded-[1.5rem] border border-white/60 bg-card/80 shadow-[0_22px_60px_-36px_rgba(18,57,42,0.35)] xl:grid-cols-[380px_1fr] xl:rounded-[1.75rem]">
+            <div className="min-h-0 flex-1 grid grid-cols-1 overflow-hidden rounded-[1.5rem] border border-white/60 dark:border-slate-700/50 bg-card/80 dark:bg-slate-900/50 shadow-[0_22px_60px_-36px_rgba(18,57,42,0.35)] dark:shadow-[0_22px_60px_-36px_rgba(0,0,0,0.5)] xl:grid-cols-[380px_1fr] xl:rounded-[1.75rem]">
                 <ConversationList
                     conversations={conversations}
                     activeContactId={activeContactId}

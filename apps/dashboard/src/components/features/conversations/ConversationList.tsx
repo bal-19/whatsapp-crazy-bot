@@ -28,8 +28,8 @@ export function ConversationList({ conversations, activeContactId, onSelect }: C
     );
 
     return (
-        <div className="flex h-full flex-col rounded-t-xl bg-white/85 lg:rounded-l-xl lg:rounded-tr-none">
-            <div className="border-b border-border/40 bg-white/60 p-4 sm:p-5">
+        <div className="flex h-full flex-col rounded-t-xl bg-white/85 lg:rounded-l-xl lg:rounded-tr-none overflow-hidden">
+            <div className="border-b border-border/40 bg-white/60 p-4 sm:p-5 flex-shrink-0">
                 <div className="mb-4">
                     <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Inbox</p>
                     <h2 className="mt-1 text-base font-bold text-foreground">Percakapan</h2>

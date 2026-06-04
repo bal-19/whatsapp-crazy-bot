@@ -28,40 +28,7 @@ export function LoginPage() {
             <div className="absolute left-[10%] top-[12%] h-48 w-48 rounded-full bg-amber-200/30 blur-3xl" />
             <div className="absolute bottom-[10%] right-[12%] h-64 w-64 rounded-full bg-emerald-200/30 blur-3xl" />
 
-            <div className="relative grid w-full max-w-5xl gap-6 lg:grid-cols-[1.1fr_420px]">
-                <Card className="mesh-card hidden lg:block">
-                    <CardContent className="flex h-full flex-col justify-between p-8">
-                        <div>
-                            <div className="inline-flex items-center gap-2 rounded-full bg-white/85 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700">
-                                <Sparkles className="h-3.5 w-3.5" />
-                                Dashboard Refresh
-                            </div>
-                            <h1 className="mt-6 text-5xl font-bold leading-tight text-slate-900">
-                                WhatsApp bot yang rapi di backend, dan sekarang rapi juga tampilannya.
-                            </h1>
-                            <p className="mt-5 max-w-xl text-base leading-8 text-slate-600">
-                                Satu tempat untuk memantau QR pairing, percakapan, analytics, konfigurasi persona,
-                                dan log sistem dengan nuansa visual yang lebih modern.
-                            </p>
-                        </div>
-
-                        <div className="grid gap-4 md:grid-cols-3">
-                            <div className="rounded-[1.25rem] bg-white/80 p-4 shadow-sm">
-                                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Realtime</p>
-                                <p className="mt-2 text-lg font-bold text-slate-900">Conversations</p>
-                            </div>
-                            <div className="rounded-[1.25rem] bg-white/80 p-4 shadow-sm">
-                                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Persona</p>
-                                <p className="mt-2 text-lg font-bold text-slate-900">Config Studio</p>
-                            </div>
-                            <div className="rounded-[1.25rem] bg-white/80 p-4 shadow-sm">
-                                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Health</p>
-                                <p className="mt-2 text-lg font-bold text-slate-900">Analytics & Logs</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
+            <div className="relative grid w-full max-w-md gap-6">
                 <Card className="w-full">
                     <CardHeader>
                         <div className="flex items-center gap-3">
@@ -76,9 +43,6 @@ export function LoginPage() {
                     </CardHeader>
                     <CardContent>
                         <form className="space-y-4" onSubmit={(event) => void handleSubmit(event)}>
-                            <div className="rounded-[1.25rem] bg-muted/50 p-4 text-sm text-slate-600">
-                                Gunakan akun admin yang sudah tersimpan di database `admin_users`.
-                            </div>
                             <div className="space-y-2">
                                 <Label htmlFor="username">Username</Label>
                                 <Input

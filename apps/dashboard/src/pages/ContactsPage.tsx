@@ -159,12 +159,12 @@ export function ContactsPage() {
             </div>
 
             <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 sm:gap-7 2xl:grid-cols-[380px_minmax(0,1fr)]">
-                <Card className="min-h-0">
-                    <CardHeader>
+                <Card className="min-h-0 overflow-hidden flex flex-col">
+                    <CardHeader className="flex-shrink-0">
                         <CardTitle>Daftar Kontak</CardTitle>
                         <CardDescription>{contacts.length} contact tersimpan di database.</CardDescription>
                     </CardHeader>
-                    <CardContent className="soft-scrollbar space-y-3.5 overflow-auto pr-1">
+                    <CardContent className="soft-scrollbar space-y-3.5 overflow-auto min-h-0 flex-1 pr-1">
                         {isLoading ? (
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -214,8 +214,8 @@ export function ContactsPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="overflow-hidden">
-                    <CardHeader className="flex flex-col gap-4 space-y-0 lg:flex-row lg:items-start lg:justify-between">
+                <Card className="min-h-0 overflow-hidden flex flex-col">
+                    <CardHeader className="flex flex-col gap-4 space-y-0 lg:flex-row lg:items-start lg:justify-between flex-shrink-0">
                         <div>
                             <CardTitle>{isCreating ? 'Buat Contact Baru' : 'Edit Contact'}</CardTitle>
                             <CardDescription>
@@ -233,7 +233,7 @@ export function ContactsPage() {
                             </Button>
                         ) : null}
                     </CardHeader>
-                    <CardContent className="space-y-6">
+                    <CardContent className="soft-scrollbar space-y-6 overflow-auto min-h-0 flex-1">
                         {isCreating || selectedContact ? (
                             <>
                                 <div className="rounded-[1.25rem] bg-gradient-to-r from-emerald-50 via-white to-amber-50 p-5 text-sm leading-relaxed text-slate-600">

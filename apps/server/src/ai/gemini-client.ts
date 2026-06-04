@@ -10,6 +10,8 @@ import {
 } from "./multimodal-service.js";
 
 let model: GenerativeModel | null = null;
+let imageModel: GenerativeModel | null = null;
+export const GEMINI_IMAGE_MODEL = "gemini-3.1-flash-image";
 
 export function createGeminiModel(): GenerativeModel {
     if (!env.GEMINI_API_KEY) {
@@ -20,6 +22,26 @@ export function createGeminiModel(): GenerativeModel {
 
     return genAI.getGenerativeModel({
         model: env.GEMINI_MODEL,
+        generationConfig: {
+            temperature: 0.7,
+            topP: 0.9,
+            topK: 40,
+            maxOutputTokens: 512,
+            responseMimeType: "text/plain",
+        },
+        safetySettings: [],
+    });
+}
+
+export function createGeminiImageModel(): GenerativeModel {
+    if (!env.GEMINI_API_KEY) {
+        throw new Error("GEMINI_API_KEY is required to call Gemini");
+    }
+
+    const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
+
+    return genAI.getGenerativeModel({
+        model: GEMINI_IMAGE_MODEL,
         generationConfig: {
             temperature: 0.7,
             topP: 0.9,
@@ -69,7 +91,7 @@ export async function generateGeminiImageReply(input: {
         mimeType: string;
     };
 }): Promise<string> {
-    model ??= createGeminiModel();
+    imageModel ??= createGeminiImageModel();
 
     const prompt = buildMultimodalPrompt({
         systemPrompt: input.systemPrompt,
@@ -78,7 +100,7 @@ export async function generateGeminiImageReply(input: {
         mode: detectImageAnalysisMode(input.message),
     });
 
-    const result = await model.generateContent([
+    const result = await imageModel.generateContent([
         prompt,
         {
             inlineData: {

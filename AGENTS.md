@@ -39,6 +39,7 @@ Client Gemini sekarang dibangun dari [apps/server/src/ai/gemini-client.ts](/Volu
 Konfigurasi aktif:
 
 - Model: `env.GEMINI_MODEL`
+- Model analisis gambar statis: `gemini-3.1-flash-image`
 - Default `.env.example`: `gemini-1.5-flash-latest`
 - `temperature`: `0.7`
 - `topP`: `0.9`
@@ -51,7 +52,7 @@ Catatan penting:
 
 - Dokumen lama menyebut threshold safety Gemini di-code; implementasi sekarang tidak memasang safety settings eksplisit.
 - Jika `GEMINI_API_KEY` tidak ada, pemanggilan Gemini akan gagal.
-- Untuk analisis gambar, model yang sama dipakai melalui `generateContent()` dengan image `inlineData`.
+- Untuk analisis gambar, jalur multimodal sekarang memakai model statis `gemini-3.1-flash-image` melalui `generateContent()` dengan image `inlineData`.
 
 ## 3. Arsitektur Prompt Saat Ini
 

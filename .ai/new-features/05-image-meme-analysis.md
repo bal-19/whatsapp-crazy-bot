@@ -55,6 +55,7 @@ Status implementasi saat ini:
 
 - `imageMessage` ber-caption sudah bisa masuk ke jalur multimodal
 - image didownload dari WhatsApp lalu diproses dengan Gemini `inlineData`
+- model gambar dikunci statis ke `gemini-3.1-flash-image`
 - output akhir masih berupa text reply
 - mode dasar `describe`, `caption`, `roast`, dan `meme_explain` sudah tersedia
 - image tanpa caption belum diproses di V1

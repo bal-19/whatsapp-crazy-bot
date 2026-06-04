@@ -5,7 +5,11 @@ import { env } from "../config/env.js";
 import { buildSystemPrompt } from "./prompt-builder.js";
 import { memory } from "./conversation-memory.js";
 import { processGeminiOutput } from "./output-processor.js";
-import { generateGeminiImageReply, generateGeminiReply } from "./gemini-client.js";
+import {
+    GEMINI_IMAGE_MODEL,
+    generateGeminiImageReply,
+    generateGeminiReply,
+} from "./gemini-client.js";
 import {
     geminiQueue,
     incrementDailyCounter,
@@ -41,7 +45,7 @@ export async function generateBotReply(
         return {
             reply: createTextReply(ERROR_MESSAGES.queue_full),
             latencyMs: 0,
-            aiModel: env.GEMINI_MODEL,
+            aiModel: input.imageAttachment ? GEMINI_IMAGE_MODEL : env.GEMINI_MODEL,
         };
     }
 
@@ -85,7 +89,7 @@ export async function generateBotReply(
         return {
             reply: createTextReply(reply),
             latencyMs,
-            aiModel: env.GEMINI_MODEL,
+            aiModel: input.imageAttachment ? GEMINI_IMAGE_MODEL : env.GEMINI_MODEL,
         };
     } catch (error) {
         const latencyMs = Date.now() - startedAt;
@@ -98,7 +102,7 @@ export async function generateBotReply(
         return {
             reply: createTextReply(classifyGeminiError(message)),
             latencyMs,
-            aiModel: env.GEMINI_MODEL,
+            aiModel: input.imageAttachment ? GEMINI_IMAGE_MODEL : env.GEMINI_MODEL,
         };
     }
 }

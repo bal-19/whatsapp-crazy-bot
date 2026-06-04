@@ -11,7 +11,7 @@ import {
 
 let model: GenerativeModel | null = null;
 let imageModel: GenerativeModel | null = null;
-export const GEMINI_IMAGE_MODEL = "gemini-3.1-flash-image";
+export const GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image";
 
 export function createGeminiModel(): GenerativeModel {
     if (!env.GEMINI_API_KEY) {

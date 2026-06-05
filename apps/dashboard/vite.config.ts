@@ -8,7 +8,15 @@ export default defineConfig({
         react(),
         VitePWA({
             registerType: "autoUpdate",
-            includeAssets: ["favicon.ico", "apple-touch-icon.png"],
+            // Jangan include manual manifest.json — biarkan plugin yang generate
+            includeAssets: [
+                "favicon.ico",
+                "apple-touch-icon.png",
+                "pwa-192x192.png",
+                "pwa-512x512.png",
+            ],
+            // Wajib untuk generate SW yang valid
+            injectRegister: "auto",
             manifest: {
                 name: "WhatsApp AI Bot Dashboard",
                 short_name: "Bot Dashboard",
@@ -19,6 +27,9 @@ export default defineConfig({
                 scope: "/",
                 start_url: "/",
                 display: "standalone",
+                orientation: "portrait",
+                lang: "id",
+                // HANYA icon yang file-nya benar-benar ada di public/
                 icons: [
                     {
                         src: "/pwa-192x192.png",
@@ -27,7 +38,7 @@ export default defineConfig({
                         purpose: "any",
                     },
                     {
-                        src: "/pwa-192x192-maskable.png",
+                        src: "/pwa-192x192.png",
                         sizes: "192x192",
                         type: "image/png",
                         purpose: "maskable",
@@ -39,88 +50,35 @@ export default defineConfig({
                         purpose: "any",
                     },
                     {
-                        src: "/pwa-512x512-maskable.png",
+                        src: "/pwa-512x512.png",
                         sizes: "512x512",
                         type: "image/png",
                         purpose: "maskable",
                     },
                 ],
-                screenshots: [
-                    {
-                        src: "/screenshot-1.png",
-                        sizes: "540x720",
-                        type: "image/png",
-                        form_factor: "narrow",
-                    },
-                    {
-                        src: "/screenshot-2.png",
-                        sizes: "1280x720",
-                        type: "image/png",
-                        form_factor: "wide",
-                    },
-                ],
-                categories: ["productivity", "business"],
-                shortcuts: [
-                    {
-                        name: "Conversations",
-                        short_name: "Chat",
-                        description: "Lihat dan kelola percakapan WhatsApp",
-                        url: "/conversations",
-                        icons: [
-                            {
-                                src: "/icon-conversations.png",
-                                sizes: "192x192",
-                            },
-                        ],
-                    },
-                    {
-                        name: "Analytics",
-                        short_name: "Stats",
-                        description: "Lihat analitik dan statistik bot",
-                        url: "/analytics",
-                        icons: [
-                            {
-                                src: "/icon-analytics.png",
-                                sizes: "192x192",
-                            },
-                        ],
-                    },
-                    {
-                        name: "Configuration",
-                        short_name: "Config",
-                        description: "Konfigurasi bot dan sistem",
-                        url: "/config",
-                        icons: [
-                            {
-                                src: "/icon-config.png",
-                                sizes: "192x192",
-                            },
-                        ],
-                    },
-                ],
+                // HAPUS screenshots & shortcuts — jika file PNG-nya tidak ada,
+                // browser Android menolak installability check secara diam-diam
             },
             workbox: {
-                globPatterns: ["**/*.{js,css,html,ico,png,svg,webp}"],
+                globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2}"],
+                // Penting: navigateFallback agar SPA routing bekerja di offline
+                navigateFallback: "index.html",
+                navigateFallbackDenylist: [/^\/api\//],
                 runtimeCaching: [
                     {
-                        urlPattern: /^https:\/\/api\..*/i,
+                        // Cache API calls ke server lokal (bukan https://api.*)
+                        urlPattern: ({ url }) =>
+                            url.pathname.startsWith("/api/"),
                         handler: "NetworkFirst",
                         options: {
                             cacheName: "api-cache",
+                            networkTimeoutSeconds: 10,
                             expiration: {
                                 maxEntries: 100,
-                                maxAgeSeconds: 60 * 60 * 24, // 24 hours
+                                maxAgeSeconds: 60 * 60 * 24, // 24 jam
                             },
-                        },
-                    },
-                    {
-                        urlPattern: /^https:\/\/.*\.googleapis\.com\/.*/i,
-                        handler: "CacheFirst",
-                        options: {
-                            cacheName: "google-apis",
-                            expiration: {
-                                maxEntries: 20,
-                                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
+                            cacheableResponse: {
+                                statuses: [0, 200],
                             },
                         },
                     },
@@ -129,9 +87,8 @@ export default defineConfig({
                 clientsClaim: true,
             },
             devOptions: {
-                enabled: true,
-                navigateFallback: "index.html",
-                suppressWarnings: true,
+                // Matikan di dev untuk menghindari konflik HMR
+                enabled: false,
             },
         }),
     ],

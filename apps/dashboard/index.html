@@ -12,17 +12,17 @@
             content="Dashboard untuk mengelola WhatsApp AI Bot dengan analitik dan konfigurasi real-time"
         />
 
-        <!-- Apple Meta Tags -->
+        <!-- Apple Meta Tags — wajib untuk iOS Safari -->
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta
-            name="apple-mobile-web-app-status-bar-style"
-            content="black-translucent"
-        />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Bot Dashboard" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
-        <!-- PWA Manifest -->
-        <link rel="manifest" href="/manifest.json" />
+        <!--
+            JANGAN tambahkan <link rel="manifest"> secara manual di sini.
+            vite-plugin-pwa akan inject manifest dan SW otomatis saat build.
+            Jika ada dua manifest (manual + generated), browser bisa conflict.
+        -->
 
         <!-- Icons -->
         <link rel="icon" type="image/x-icon" href="/favicon.ico" />

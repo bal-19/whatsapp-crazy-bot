@@ -95,27 +95,6 @@ def main():
     icon_svg = public_dir / "icon.svg"
     success_count = 0
 
-    # PWA Icons
-    print("✏️  Generating PWA icons...")
-    success_count += generate_icon(icon_svg, public_dir / "pwa-192x192.png", 192, 192)
-    success_count += generate_icon(icon_svg, public_dir / "pwa-512x512.png", 512, 512)
-
-    # Maskable Icons
-    print("✏️  Generating maskable icons...")
-    success_count += generate_icon(
-        icon_svg, public_dir / "pwa-192x192-maskable.png", 192, 192
-    )
-    success_count += generate_icon(
-        icon_svg, public_dir / "pwa-512x512-maskable.png", 512, 512
-    )
-
-    # Shortcut Icons
-    print("✏️  Generating shortcut icons...")
-    for icon_type in ["conversations", "analytics", "config"]:
-        svg_file = public_dir / f"icon-{icon_type}.svg"
-        png_file = public_dir / f"icon-{icon_type}.png"
-        success_count += generate_icon(svg_file, png_file, 192, 192)
-
     # Favicon
     print("✏️  Generating favicon...")
     success_count += generate_favicon_ico(icon_svg, public_dir / "favicon.ico")

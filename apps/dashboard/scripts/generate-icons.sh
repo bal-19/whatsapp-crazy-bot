@@ -25,27 +25,6 @@ fi
 
 echo "📁 Working directory: $PUBLIC_DIR"
 
-# Generate PWA icons
-echo "✏️  Generating PWA icons (192x192, 512x512)..."
-convert "$PUBLIC_DIR/icon.svg" -resize 192x192 "$PUBLIC_DIR/pwa-192x192.png"
-convert "$PUBLIC_DIR/icon.svg" -resize 512x512 "$PUBLIC_DIR/pwa-512x512.png"
-echo "✅ PWA icons generated"
-
-# Generate maskable icons (untuk adaptive)
-echo "✏️  Generating maskable icons..."
-convert "$PUBLIC_DIR/icon.svg" -resize 192x192 "$PUBLIC_DIR/pwa-192x192-maskable.png"
-convert "$PUBLIC_DIR/icon.svg" -resize 512x512 "$PUBLIC_DIR/pwa-512x512-maskable.png"
-echo "✅ Maskable icons generated"
-
-# Generate shortcut icons
-echo "✏️  Generating shortcut icons..."
-for icon in conversations analytics config; do
-    if [ -f "$PUBLIC_DIR/icon-$icon.svg" ]; then
-        convert "$PUBLIC_DIR/icon-$icon.svg" -resize 192x192 "$PUBLIC_DIR/icon-$icon.png"
-        echo "✅ icon-$icon.png generated"
-    fi
-done
-
 # Generate favicon
 echo "✏️  Generating favicon..."
 convert "$PUBLIC_DIR/icon.svg" -define icon:auto-resize=32,16 "$PUBLIC_DIR/favicon.ico"

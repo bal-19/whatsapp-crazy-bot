@@ -10,28 +10,10 @@
     "background_color": "#ffffff",
     "icons": [
         {
-            "src": "/pwa-192x192.png",
-            "sizes": "192x192",
-            "type": "image/png",
-            "purpose": "any"
-        },
-        {
-            "src": "/pwa-192x192-maskable.png",
-            "sizes": "192x192",
-            "type": "image/png",
-            "purpose": "maskable"
-        },
-        {
-            "src": "/pwa-512x512.png",
-            "sizes": "512x512",
-            "type": "image/png",
-            "purpose": "any"
-        },
-        {
-            "src": "/pwa-512x512-maskable.png",
-            "sizes": "512x512",
-            "type": "image/png",
-            "purpose": "maskable"
+            "src": "/icon.svg",
+            "sizes": "1024x1024",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
         }
     ],
     "screenshots": [
@@ -48,43 +30,5 @@
             "form_factor": "wide"
         }
     ],
-    "categories": ["productivity", "business"],
-    "shortcuts": [
-        {
-            "name": "Conversations",
-            "short_name": "Chat",
-            "description": "Lihat dan kelola percakapan WhatsApp",
-            "url": "/conversations",
-            "icons": [
-                {
-                    "src": "/icon-conversations.png",
-                    "sizes": "192x192"
-                }
-            ]
-        },
-        {
-            "name": "Analytics",
-            "short_name": "Stats",
-            "description": "Lihat analitik dan statistik bot",
-            "url": "/analytics",
-            "icons": [
-                {
-                    "src": "/icon-analytics.png",
-                    "sizes": "192x192"
-                }
-            ]
-        },
-        {
-            "name": "Configuration",
-            "short_name": "Config",
-            "description": "Konfigurasi bot dan sistem",
-            "url": "/config",
-            "icons": [
-                {
-                    "src": "/icon-config.png",
-                    "sizes": "192x192"
-                }
-            ]
-        }
-    ]
+    "categories": ["productivity", "business"]
 }

@@ -9,12 +9,7 @@ export default defineConfig({
         VitePWA({
             registerType: "autoUpdate",
             // Jangan include manual manifest.json — biarkan plugin yang generate
-            includeAssets: [
-                "favicon.ico",
-                "apple-touch-icon.png",
-                "pwa-192x192.png",
-                "pwa-512x512.png",
-            ],
+            includeAssets: ["icon.svg", "favicon.ico", "apple-touch-icon.png"],
             // Wajib untuk generate SW yang valid
             injectRegister: "auto",
             manifest: {
@@ -29,31 +24,13 @@ export default defineConfig({
                 display: "standalone",
                 orientation: "portrait",
                 lang: "id",
-                // HANYA icon yang file-nya benar-benar ada di public/
+                // Pakai satu source icon publik yang sama dengan asset dashboard.
                 icons: [
                     {
-                        src: "/pwa-192x192.png",
-                        sizes: "192x192",
-                        type: "image/png",
-                        purpose: "any",
-                    },
-                    {
-                        src: "/pwa-192x192.png",
-                        sizes: "192x192",
-                        type: "image/png",
-                        purpose: "maskable",
-                    },
-                    {
-                        src: "/pwa-512x512.png",
-                        sizes: "512x512",
-                        type: "image/png",
-                        purpose: "any",
-                    },
-                    {
-                        src: "/pwa-512x512.png",
-                        sizes: "512x512",
-                        type: "image/png",
-                        purpose: "maskable",
+                        src: "/icon.svg",
+                        sizes: "1024x1024",
+                        type: "image/svg+xml",
+                        purpose: "any maskable",
                     },
                 ],
                 // HAPUS screenshots & shortcuts — jika file PNG-nya tidak ada,

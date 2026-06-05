@@ -1,8 +1,8 @@
-import { BarChart3, ContactRound, LayoutDashboard, MessageSquare, Settings2, ShieldCheck, Terminal, Users, UsersRound, ChevronDown } from 'lucide-react';
+import { BarChart3, ContactRound, LayoutDashboard, MessageSquare, Settings2, ShieldCheck, Terminal, Users, UsersRound, ChevronDown, MoreHorizontal, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { DashboardPermission } from '@whatsapp-bot/shared';
 import { NavLink } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { entranceTransition, hoverTransition } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
@@ -43,31 +43,34 @@ const items: MenuItem[] = [
     }
 ];
 
+// Jumlah item yang selalu tampil di navbar (sisanya masuk More)
+const PRIMARY_COUNT = 5;
+
 export function Sidebar() {
     const hasPermission = useAuthStore((state) => state.hasPermission);
     const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set());
+    const [showMore, setShowMore] = useState(false);
 
     const visibleItems = items.filter((item) => hasPermission(item.permission));
 
-    // Flatten menu items for mobile - include children as separate items
     const flattenedItems = visibleItems.reduce<MenuItem[]>((acc, item) => {
         if (item.children) {
-            // Add all children that user has permission for
             const visibleChildren = item.children.filter((child) => hasPermission(child.permission));
             return [...acc, ...visibleChildren];
         }
-        // Add regular items
         return [...acc, item];
     }, []);
+
+    // Pisahkan primary (navbar) dan secondary (More sheet)
+    const primaryItems = flattenedItems.slice(0, PRIMARY_COUNT);
+    const secondaryItems = flattenedItems.slice(PRIMARY_COUNT);
+    const hasSecondary = secondaryItems.length > 0;
 
     const toggleMenu = (label: string) => {
         setExpandedMenus((prev) => {
             const next = new Set(prev);
-            if (next.has(label)) {
-                next.delete(label);
-            } else {
-                next.add(label);
-            }
+            if (next.has(label)) next.delete(label);
+            else next.add(label);
             return next;
         });
     };
@@ -102,24 +105,17 @@ export function Sidebar() {
                         whileTap={{ scale: 0.995 }}
                     >
                         <div className="flex items-center gap-2.5 lg:flex-1 lg:gap-2">
-                            <div
-                                className={cn(
-                                    iconBase,
-                                    'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400',
-                                    'group-hover:bg-emerald-100/70 dark:group-hover:bg-emerald-900/50',
-                                    'group-hover:text-emerald-700 dark:group-hover:text-emerald-400'
-                                )}
-                            >
+                            <div className={cn(
+                                iconBase,
+                                'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400',
+                                'group-hover:bg-emerald-100/70 dark:group-hover:bg-emerald-900/50',
+                                'group-hover:text-emerald-700 dark:group-hover:text-emerald-400'
+                            )}>
                                 <item.icon className="h-4 w-4 shrink-0" />
                             </div>
                             <span className="block truncate text-xs text-left font-medium">{item.label}</span>
                         </div>
-                        <div
-                            className={cn(
-                                'transition-transform duration-150 ease-out',
-                                isExpanded && 'rotate-180'
-                            )}
-                        >
+                        <div className={cn('transition-transform duration-150 ease-out', isExpanded && 'rotate-180')}>
                             <ChevronDown className="h-4 w-4 shrink-0 hidden lg:block flex-shrink-0" />
                         </div>
                     </motion.button>
@@ -139,12 +135,7 @@ export function Sidebar() {
         }
 
         return (
-            <NavLink
-                key={item.to}
-                to={item.to!}
-                end={item.to === '/'}
-                className="mb-1 block"
-            >
+            <NavLink key={item.to} to={item.to!} end={item.to === '/'} className="mb-1 block">
                 {({ isActive }) => (
                     <motion.div
                         className={cn(
@@ -182,9 +173,8 @@ export function Sidebar() {
 
     return (
         <>
-            {/* Desktop Sidebar */}
+            {/* Desktop Sidebar — tidak berubah */}
             <aside className="hidden lg:flex w-full shrink-0 rounded-2xl border border-white/60 dark:border-slate-700/50 bg-white/85 dark:bg-slate-900/50 p-4 text-slate-900 dark:text-slate-50 backdrop-blur-sm sm:p-5 lg:h-[calc(100vh-132px)] lg:w-64 lg:max-w-64 lg:rounded-2xl lg:p-5 transition-colors overflow-hidden flex-col lg:overflow-hidden">
-                {/* Header */}
                 <motion.div
                     className="rounded-xl border border-emerald-100/70 dark:border-emerald-600/30 bg-emerald-50/50 dark:bg-emerald-950/40 p-4 flex-shrink-0"
                     initial={{ opacity: 0, y: -6 }}
@@ -192,9 +182,7 @@ export function Sidebar() {
                     transition={entranceTransition}
                 >
                     <div className="flex items-center gap-2.5">
-                        <div>
-                            <BrandMark className="h-10 w-10 rounded-lg" />
-                        </div>
+                        <div><BrandMark className="h-10 w-10 rounded-lg" /></div>
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Control</p>
                             <h2 className="text-base font-bold text-slate-900 dark:text-slate-50">WhatsApp AI</h2>
@@ -205,7 +193,6 @@ export function Sidebar() {
                     </p>
                 </motion.div>
 
-                {/* Navigation */}
                 <motion.nav
                     className="soft-scrollbar mx-0 mt-5 block overflow-y-auto flex-1 px-0"
                     initial={{ opacity: 0 }}
@@ -215,7 +202,6 @@ export function Sidebar() {
                     {visibleItems.map((item) => renderMenuItem(item))}
                 </motion.nav>
 
-                {/* Footer Note */}
                 <motion.div
                     className="mt-4 rounded-lg border border-emerald-100 dark:border-emerald-600/30 bg-emerald-50/50 dark:bg-emerald-950/40 p-4 flex-shrink-0 w-full overflow-hidden"
                     initial={{ opacity: 0, y: 6 }}
@@ -229,47 +215,188 @@ export function Sidebar() {
                 </motion.div>
             </aside>
 
-            {/* Mobile Bottom Navigation */}
+            {/* Mobile — Overlay backdrop */}
+            <AnimatePresence>
+                {showMore && (
+                    <motion.div
+                        className="fixed inset-0 z-40 lg:hidden bg-black/40 backdrop-blur-sm"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setShowMore(false)}
+                    />
+                )}
+            </AnimatePresence>
+
+            {/* Mobile — More Bottom Sheet */}
+            <AnimatePresence>
+                {showMore && (
+                    <motion.div
+                        className="fixed bottom-20 left-4 right-4 z-50 lg:hidden rounded-2xl border border-slate-700/60 bg-slate-900/98 backdrop-blur-xl overflow-hidden"
+                        initial={{ opacity: 0, y: 16, scale: 0.97 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 16, scale: 0.97 }}
+                        transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+                    >
+                        {/* Sheet header */}
+                        <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-slate-700/50">
+                            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                Menu Lainnya
+                            </span>
+                            <button
+                                onClick={() => setShowMore(false)}
+                                className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-700/60 text-slate-400 hover:text-slate-200 transition-colors"
+                                aria-label="Tutup"
+                            >
+                                <X className="h-3.5 w-3.5" />
+                            </button>
+                        </div>
+
+                        {/* Sheet grid */}
+                        <div className="grid grid-cols-4 gap-1 p-3">
+                            {secondaryItems.map((item) => {
+                                if (!item.to) return null;
+                                return (
+                                    <NavLink
+                                        key={item.to}
+                                        to={item.to}
+                                        end={item.to === '/'}
+                                        onClick={() => setShowMore(false)}
+                                    >
+                                        {({ isActive }) => (
+                                            <motion.div
+                                                className={cn(
+                                                    'flex flex-col items-center gap-1.5 rounded-xl px-1 py-3 transition-colors',
+                                                    isActive
+                                                        ? 'bg-slate-700/80'
+                                                        : 'hover:bg-slate-800/60'
+                                                )}
+                                                whileTap={{ scale: 0.95 }}
+                                            >
+                                                <div className={cn(
+                                                    'flex h-9 w-9 items-center justify-center rounded-full transition-colors',
+                                                    isActive
+                                                        ? 'bg-white'
+                                                        : 'bg-slate-700/60'
+                                                )}>
+                                                    <item.icon className={cn(
+                                                        'h-4 w-4 transition-colors',
+                                                        isActive
+                                                            ? 'text-slate-900'
+                                                            : 'text-slate-400'
+                                                    )} />
+                                                </div>
+                                                <span className={cn(
+                                                    'text-[10px] leading-tight text-center',
+                                                    isActive ? 'text-white' : 'text-slate-500'
+                                                )}>
+                                                    {item.label}
+                                                </span>
+                                            </motion.div>
+                                        )}
+                                    </NavLink>
+                                );
+                            })}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Mobile Bottom Navbar */}
             <motion.nav
                 className="fixed bottom-3 left-0 right-0 z-50 lg:hidden flex justify-center items-center px-4"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={entranceTransition}
             >
-                <div className="flex items-center justify-center gap-1.5 rounded-full border border-slate-800/50 dark:border-slate-700/50 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-xl px-3 py-2.5 shadow-2xl">
-                    {flattenedItems.map((item) => {
+                <div
+                    className="flex items-center justify-center rounded-full border border-slate-800/50 dark:border-slate-700/50 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-xl shadow-2xl w-full max-w-sm"
+                    style={{
+                        gap: 'clamp(2px, 1.5vw, 8px)',
+                        paddingInline: 'clamp(10px, 3vw, 16px)',
+                        paddingBlock: '10px',
+                    }}
+                >
+                    {/* Primary items */}
+                    {primaryItems.map((item) => {
                         if (!item.to) return null;
-
                         return (
                             <NavLink
                                 key={item.to}
                                 to={item.to}
                                 end={item.to === '/'}
+                                className="flex-1 flex justify-center"
+                                onClick={() => setShowMore(false)}
                             >
                                 {({ isActive }) => (
                                     <motion.div
                                         className={cn(
-                                            'relative flex h-10 w-10 items-center justify-center rounded-full transition-all',
+                                            'relative flex items-center justify-center rounded-full transition-all',
                                             isActive
                                                 ? 'bg-white dark:bg-white shadow-lg'
                                                 : 'bg-transparent'
                                         )}
+                                        style={{
+                                            width: 'clamp(36px, 9vw, 44px)',
+                                            height: 'clamp(36px, 9vw, 44px)',
+                                        }}
                                         whileTap={{ scale: 0.95 }}
                                         whileHover={{ scale: 1.05 }}
                                     >
                                         <item.icon
                                             className={cn(
-                                                'h-[18px] w-[18px] transition-colors',
+                                                'transition-colors',
                                                 isActive
                                                     ? 'text-slate-900 dark:text-slate-900'
                                                     : 'text-slate-400 dark:text-slate-500'
                                             )}
+                                            style={{
+                                                width: 'clamp(15px, 4vw, 18px)',
+                                                height: 'clamp(15px, 4vw, 18px)',
+                                            }}
                                         />
                                     </motion.div>
                                 )}
                             </NavLink>
                         );
                     })}
+
+                    {/* More button — hanya tampil jika ada secondary items */}
+                    {hasSecondary && (
+                        <button
+                            className="flex-1 flex justify-center"
+                            onClick={() => setShowMore((prev) => !prev)}
+                            aria-label="Menu lainnya"
+                        >
+                            <motion.div
+                                className={cn(
+                                    'relative flex items-center justify-center rounded-full transition-all',
+                                    showMore
+                                        ? 'bg-white dark:bg-white shadow-lg'
+                                        : 'bg-transparent'
+                                )}
+                                style={{
+                                    width: 'clamp(36px, 9vw, 44px)',
+                                    height: 'clamp(36px, 9vw, 44px)',
+                                }}
+                                whileTap={{ scale: 0.95 }}
+                                whileHover={{ scale: 1.05 }}
+                            >
+                                <MoreHorizontal
+                                    className={cn(
+                                        'transition-colors',
+                                        showMore
+                                            ? 'text-slate-900 dark:text-slate-900'
+                                            : 'text-slate-400 dark:text-slate-500'
+                                    )}
+                                    style={{
+                                        width: 'clamp(15px, 4vw, 18px)',
+                                        height: 'clamp(15px, 4vw, 18px)',
+                                    }}
+                                />
+                            </motion.div>
+                        </button>
+                    )}
                 </div>
             </motion.nav>
         </>

@@ -1,18 +1,26 @@
-import { BarChart3, ContactRound, LayoutDashboard, MessageSquare, Settings2, Terminal, UsersRound } from 'lucide-react';
+import { BarChart3, ContactRound, LayoutDashboard, MessageSquare, Settings2, ShieldCheck, Terminal, Users, UsersRound } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import type { DashboardPermission } from '@whatsapp-bot/shared';
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/stores/authStore';
 
-const items = [
-    { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/conversations', label: 'Percakapan', icon: MessageSquare },
-    { to: '/contacts', label: 'Contacts', icon: ContactRound },
-    { to: '/groups', label: 'Groups', icon: UsersRound },
-    { to: '/config', label: 'Konfigurasi', icon: Settings2 },
-    { to: '/analytics', label: 'Analytics', icon: BarChart3 },
-    { to: '/logs', label: 'Log Sistem', icon: Terminal }
+const items: Array<{ to: string; label: string; icon: LucideIcon; permission: DashboardPermission }> = [
+    { to: '/', label: 'Dashboard', icon: LayoutDashboard, permission: 'dashboard.view' },
+    { to: '/conversations', label: 'Percakapan', icon: MessageSquare, permission: 'conversations.view' },
+    { to: '/contacts', label: 'Contacts', icon: ContactRound, permission: 'contacts.manage' },
+    { to: '/groups', label: 'Groups', icon: UsersRound, permission: 'groups.manage' },
+    { to: '/config', label: 'Konfigurasi', icon: Settings2, permission: 'config.manage' },
+    { to: '/analytics', label: 'Analytics', icon: BarChart3, permission: 'analytics.view' },
+    { to: '/logs', label: 'Log Sistem', icon: Terminal, permission: 'logs.view' },
+    { to: '/users', label: 'Users', icon: Users, permission: 'users.manage' },
+    { to: '/roles', label: 'Roles', icon: ShieldCheck, permission: 'roles.manage' }
 ];
 
 export function Sidebar() {
+    const hasPermission = useAuthStore((state) => state.hasPermission);
+    const visibleItems = items.filter((item) => hasPermission(item.permission));
+
     return (
         <aside className="w-full shrink-0 rounded-2xl border border-white/60 dark:border-slate-700/50 bg-white/85 dark:bg-slate-900/50 p-4 text-slate-900 dark:text-slate-50 backdrop-blur-sm sm:p-5 lg:h-[calc(100vh-132px)] lg:w-64 lg:rounded-2xl lg:p-5 transition-colors">
             <div className="hidden rounded-xl border border-emerald-100/70 dark:border-emerald-600/30 bg-emerald-50/50 dark:bg-emerald-950/40 p-4 lg:block">
@@ -31,7 +39,7 @@ export function Sidebar() {
             </div>
 
             <nav className="soft-scrollbar -mx-1 mt-4 flex gap-2 overflow-x-auto px-1 lg:mx-0 lg:mt-5 lg:block lg:space-y-2 lg:overflow-visible lg:px-0">
-                {items.map((item) => (
+                {visibleItems.map((item) => (
                     <NavLink
                         key={item.to}
                         to={item.to}

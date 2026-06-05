@@ -7,10 +7,11 @@ interface WhatsAppQrCardProps {
     status: BotStatus;
     qrCode: string | null;
     isResettingAuth: boolean;
+    canResetAuth?: boolean;
     onResetAuth: () => void;
 }
 
-export function WhatsAppQrCard({ status, qrCode, isResettingAuth, onResetAuth }: WhatsAppQrCardProps) {
+export function WhatsAppQrCard({ status, qrCode, isResettingAuth, canResetAuth = true, onResetAuth }: WhatsAppQrCardProps) {
     const showQr = status !== 'connected' && Boolean(qrCode);
 
     return (
@@ -32,10 +33,12 @@ export function WhatsAppQrCard({ status, qrCode, isResettingAuth, onResetAuth }:
                             </CardDescription>
                         </div>
                     </div>
-                    <Button variant="outline" size="sm" onClick={onResetAuth} disabled={isResettingAuth} className="rounded-lg shrink-0">
-                        <RefreshCcw className={cn('h-3.5 w-3.5', isResettingAuth && 'animate-spin')} />
-                        {isResettingAuth ? 'Resetting...' : 'Reset Auth'}
-                    </Button>
+                    {canResetAuth ? (
+                        <Button variant="outline" size="sm" onClick={onResetAuth} disabled={isResettingAuth} className="rounded-lg shrink-0">
+                            <RefreshCcw className={cn('h-3.5 w-3.5', isResettingAuth && 'animate-spin')} />
+                            {isResettingAuth ? 'Resetting...' : 'Reset Auth'}
+                        </Button>
+                    ) : null}
                 </div>
             </CardHeader>
 

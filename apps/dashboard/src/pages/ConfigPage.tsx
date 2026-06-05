@@ -23,6 +23,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { configService } from '@/lib/services/configService';
 import { useConversationStore } from '@/stores/conversationStore';
 import { useBotStore } from '@/stores/botStore';
+import { useAuthStore } from '@/stores/authStore';
 import { AlertTriangle, Trash2 } from 'lucide-react';
 
 export function ConfigPage() {
@@ -40,6 +41,7 @@ export function ConfigPage() {
     } = useConfigStore();
     const { clearState, loadConversations } = useConversationStore();
     const { loadAnalytics, loadStatus } = useBotStore();
+    const canPurgeOperationalData = useAuthStore((state) => state.hasPermission('maintenance.manage'));
     const { toast } = useToast();
     const [isPurgingData, setIsPurgingData] = useState(false);
     const [isPurgeDialogOpen, setIsPurgeDialogOpen] = useState(false);
@@ -118,43 +120,45 @@ export function ConfigPage() {
                         Danger Zone
                     </CardTitle>
                     <CardDescription>
-                        Hapus seluruh data operasional bot tanpa menyentuh tabel `admin_users`, `bot_settings`, `system_logs`, dan `whatsapp_auth_state`.
+                        Hapus seluruh data operasional bot tanpa menyentuh tabel `users`, `roles`, `bot_settings`, `system_logs`, dan `whatsapp_auth_state`.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <p className="max-w-2xl text-sm leading-relaxed text-rose-900/80 dark:text-rose-100/80">
                         Aksi ini akan membersihkan contact, metadata grup, messages, dan personal memory. Cocok untuk reset data operasional tanpa merusak akses admin, konfigurasi bot, log sistem, atau pairing WhatsApp.
                     </p>
-                    <AlertDialog open={isPurgeDialogOpen} onOpenChange={setIsPurgeDialogOpen}>
-                        <AlertDialogTrigger asChild>
-                            <Button variant="destructive" disabled={isPurgingData} className="w-full sm:w-auto">
-                                <Trash2 className="h-4 w-4" />
-                                {isPurgingData ? 'Menghapus data...' : 'Hapus Data Operasional'}
-                            </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Hapus data operasional bot?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    Contact, metadata grup, messages, dan personal memory akan dihapus permanen. Tabel
-                                    `admin_users`, `bot_settings`, `system_logs`, dan `whatsapp_auth_state`
-                                    tetap dipertahankan.
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel disabled={isPurgingData}>Batal</AlertDialogCancel>
-                                <AlertDialogAction
-                                    onClick={(event) => {
-                                        event.preventDefault();
-                                        void handlePurgeOperationalData();
-                                    }}
-                                    disabled={isPurgingData}
-                                >
-                                    {isPurgingData ? 'Menghapus data...' : 'Ya, hapus sekarang'}
-                                </AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
+                    {canPurgeOperationalData ? (
+                        <AlertDialog open={isPurgeDialogOpen} onOpenChange={setIsPurgeDialogOpen}>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="destructive" disabled={isPurgingData} className="w-full sm:w-auto">
+                                    <Trash2 className="h-4 w-4" />
+                                    {isPurgingData ? 'Menghapus data...' : 'Hapus Data Operasional'}
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Hapus data operasional bot?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Contact, metadata grup, messages, dan personal memory akan dihapus permanen. Tabel
+                                        `users`, `roles`, `bot_settings`, `system_logs`, dan `whatsapp_auth_state`
+                                        tetap dipertahankan.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel disabled={isPurgingData}>Batal</AlertDialogCancel>
+                                    <AlertDialogAction
+                                        onClick={(event) => {
+                                            event.preventDefault();
+                                            void handlePurgeOperationalData();
+                                        }}
+                                        disabled={isPurgingData}
+                                    >
+                                        {isPurgingData ? 'Menghapus data...' : 'Ya, hapus sekarang'}
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    ) : null}
                 </CardContent>
             </Card>
         </div>

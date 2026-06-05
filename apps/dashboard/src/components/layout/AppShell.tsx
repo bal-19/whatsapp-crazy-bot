@@ -4,22 +4,32 @@ import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { useBotStore } from '@/stores/botStore';
 import { useUIStore } from '@/stores/uiStore';
+import { useAuthStore } from '@/stores/authStore';
 import { socket } from '@/lib/socket';
 
 export function AppShell() {
     const { loadStatus, loadAnalytics } = useBotStore();
     const { theme } = useUIStore();
+    const hasPermission = useAuthStore((state) => state.hasPermission);
 
     useEffect(() => {
-        void loadStatus();
-        void loadAnalytics();
+        if (hasPermission('dashboard.view') || hasPermission('bot.manage')) {
+            void loadStatus();
+        }
+        if (hasPermission('dashboard.view') || hasPermission('analytics.view')) {
+            void loadAnalytics();
+        }
         socket.connect();
-        const interval = window.setInterval(() => void loadStatus(), 30_000);
+        const interval = window.setInterval(() => {
+            if (hasPermission('dashboard.view') || hasPermission('bot.manage')) {
+                void loadStatus();
+            }
+        }, 30_000);
         return () => {
             window.clearInterval(interval);
             socket.disconnect();
         };
-    }, [loadAnalytics, loadStatus]);
+    }, [hasPermission, loadAnalytics, loadStatus]);
 
     // Apply theme on component mount and theme change
     useEffect(() => {

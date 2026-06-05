@@ -4,7 +4,7 @@
  */
 
 import { supabaseAdmin } from "../lib/supabase.js";
-import { hashPassword } from "../auth/jwt.js";
+import { hashPassword } from "../auth/password.js";
 
 export interface AdminUser {
     id: string;

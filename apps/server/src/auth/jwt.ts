@@ -1,13 +1,23 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
+import type { AuthUser, DashboardPermission } from "@whatsapp-bot/shared";
 import { env } from "../config/env.js";
-import { supabaseAdmin } from "../lib/supabase.js";
+import {
+    getAuthUserById,
+    verifyUserCredentials,
+} from "../services/accessControlService.js";
+import { hasAnyPermission } from "./permissions.js";
+import { hashPassword, verifyPassword } from "./password.js";
 
-interface JwtPayload {
+export interface JwtPayload {
     sub: string; // User ID (UUID)
     username: string; // Username for debugging
-    role: "admin";
+    roleName: string | null;
+    permissions: DashboardPermission[];
+}
+
+export interface AuthenticatedRequest extends Request {
+    auth?: JwtPayload;
 }
 
 /**
@@ -21,36 +31,37 @@ interface JwtPayload {
 export async function verifyLogin(
     username: string,
     password: string,
-): Promise<string | null> {
+): Promise<AuthUser | null> {
     try {
-        if (!supabaseAdmin) {
+        if (env.SUPABASE_URL === "" || env.SUPABASE_SERVICE_ROLE_KEY === "") {
             const fallbackMatch =
                 username === env.DASHBOARD_USERNAME &&
                 password === env.DASHBOARD_PASSWORD;
-            return fallbackMatch ? "local-admin" : null;
+            return fallbackMatch
+                ? {
+                      id: "local-admin",
+                      username,
+                      role_name: "Admin",
+                      permissions: ["*"],
+                  }
+                : null;
         }
 
-        const { data: user, error } = await supabaseAdmin
-            .from("admin_users")
-            .select("id, password_hash, is_active")
-            .eq("username", username)
-            .single();
-
-        if (error || !user) {
-            // User not found
+        const user = await verifyUserCredentials(username);
+        if (!user || !user.isActive) {
             return null;
         }
 
-        if (!user.is_active) {
-            // User account is disabled
-            return null;
-        }
+        const isValid = await verifyPassword(password, user.passwordHash);
+        if (!isValid) return null;
 
-        // Verify password hash (bcrypt comparison)
-        const isValid = await bcrypt.compare(password, user.password_hash);
-        return isValid ? user.id : null;
+        return {
+            id: user.id,
+            username,
+            role_name: user.roleName,
+            permissions: user.permissions,
+        };
     } catch (err) {
-        // Log error but don't expose details
         console.error("[AUTH] Login verification error:", err);
         return null;
     }
@@ -64,21 +75,19 @@ export async function verifyLogin(
  * @param rounds - Bcrypt rounds (default: 10)
  * @returns Bcrypt hashed password
  */
-export async function hashPassword(
-    password: string,
-    rounds = 10,
-): Promise<string> {
-    return bcrypt.hash(password, rounds);
-}
-
 /**
  * Create JWT token for authenticated admin user
  * @param userId - User ID (UUID)
  * @param username - Username for reference
  * @returns JWT token (valid for 12 hours)
  */
-export function signToken(userId: string, username: string): string {
-    const payload: JwtPayload = { sub: userId, username, role: "admin" };
+export function signToken(user: AuthUser): string {
+    const payload: JwtPayload = {
+        sub: user.id,
+        username: user.username,
+        roleName: user.role_name,
+        permissions: user.permissions,
+    };
     return jwt.sign(payload, env.JWT_SECRET, { expiresIn: "12h" });
 }
 
@@ -98,9 +107,53 @@ export function requireAuth(
     }
 
     try {
-        jwt.verify(token, env.JWT_SECRET);
+        const payload = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
+        (req as AuthenticatedRequest).auth = payload;
         next();
     } catch {
         res.status(401).json({ message: "Unauthorized" });
     }
+}
+
+export function requirePermission(...permissions: DashboardPermission[]) {
+    return (req: Request, res: Response, next: NextFunction): void => {
+        const auth = (req as AuthenticatedRequest).auth;
+        if (!auth) {
+            res.status(401).json({ message: "Unauthorized" });
+            return;
+        }
+
+        if (hasAnyPermission(auth.permissions, permissions)) {
+            next();
+            return;
+        }
+
+        res.status(403).json({ message: "Forbidden" });
+    };
+}
+
+export async function getCurrentAuthUser(
+    req: Request,
+): Promise<AuthUser | null> {
+    const auth = (req as AuthenticatedRequest).auth;
+    if (!auth) return null;
+
+    if (auth.sub === "local-admin") {
+        return {
+            id: auth.sub,
+            username: auth.username,
+            role_name: auth.roleName,
+            permissions: auth.permissions,
+        };
+    }
+
+    const dbUser = await getAuthUserById(auth.sub);
+    return (
+        dbUser ?? {
+            id: auth.sub,
+            username: auth.username,
+            role_name: auth.roleName,
+            permissions: auth.permissions,
+        }
+    );
 }

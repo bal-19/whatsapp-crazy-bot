@@ -19,6 +19,7 @@ api.interceptors.response.use(
     const message = error.response?.data?.message || 'Terjadi kesalahan';
     if (error.response?.status === 401 && window.location.pathname !== '/login') {
       localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
       window.location.href = '/login';
       return Promise.reject(error);
     }

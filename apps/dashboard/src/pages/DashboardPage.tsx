@@ -6,6 +6,7 @@ import { MessageVolumeChart } from '@/components/features/analytics/MessageVolum
 import { WhatsAppQrCard } from '@/components/features/dashboard/WhatsAppQrCard';
 import { useBotStore } from '@/stores/botStore';
 import { useConversationStore } from '@/stores/conversationStore';
+import { useAuthStore } from '@/stores/authStore';
 import { formatConversationSubtitle, formatConversationTitle, formatDate } from '@/lib/utils';
 
 const ACTIVE_COMMANDS = [
@@ -20,6 +21,8 @@ export function DashboardPage() {
     const { status, totalMessagesToday, analytics, queueSize, qrCode, isResettingAuth, loadAnalytics, resetAuth } =
         useBotStore();
     const { conversations, loadConversations } = useConversationStore();
+    const canManageBot = useAuthStore((state) => state.hasPermission('bot.manage'));
+    const canViewConversations = useAuthStore((state) => state.hasPermission('conversations.view'));
 
     useEffect(() => {
         void loadConversations();
@@ -88,9 +91,11 @@ export function DashboardPage() {
                             <CardTitle>Percakapan Terbaru</CardTitle>
                             <CardDescription>5 thread paling baru yang masuk ke bot.</CardDescription>
                         </div>
-                        <Link className="text-sm font-semibold text-primary hover:underline" to="/conversations">
-                            Lihat Semua
-                        </Link>
+                        {canViewConversations ? (
+                            <Link className="text-sm font-semibold text-primary hover:underline" to="/conversations">
+                                Lihat Semua
+                            </Link>
+                        ) : null}
                     </CardHeader>
                     <CardContent className="space-y-3.5">
                         {conversations.slice(0, 5).map((conversation) => (
@@ -118,6 +123,7 @@ export function DashboardPage() {
                     status={status}
                     qrCode={qrCode}
                     isResettingAuth={isResettingAuth}
+                    canResetAuth={canManageBot}
                     onResetAuth={() => void resetAuth()}
                 />
 

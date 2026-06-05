@@ -6,6 +6,7 @@ package-lock.json
 # Build outputs
 dist/
 **/dist/
+dev-dist/
 
 # TypeScript incremental cache
 *.tsbuildinfo

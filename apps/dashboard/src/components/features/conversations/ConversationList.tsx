@@ -2,6 +2,7 @@ import { Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Input } from '@/components/ui';
+import { entranceTransition, hoverTransition } from '@/lib/motion';
 import { cn, formatDate } from '@/lib/utils';
 
 export interface ConversationThread {
@@ -64,11 +65,14 @@ export function ConversationList({ conversations, activeContactId, onSelect }: C
                                     ? 'bg-emerald-50/80 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-600/30 shadow-sm'
                                     : 'hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30 hover:border-emerald-100/70 dark:hover:border-emerald-600/30'
                             )}
-                            initial={{ opacity: 0, x: -20 }}
+                            initial={{ opacity: 0, x: -8 }}
                             animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.05, type: 'spring', stiffness: 300, damping: 20 }}
-                            whileHover={{ x: 5, scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
+                            transition={{
+                                ...entranceTransition,
+                                delay: Math.min(index * 0.018, 0.12),
+                            }}
+                            whileHover={{ x: 3, scale: 1.003 }}
+                            whileTap={{ scale: 0.995 }}
                         >
                             <div className="flex items-center justify-between gap-2">
                                 <p className="truncate text-sm font-semibold text-foreground">
@@ -83,14 +87,16 @@ export function ConversationList({ conversations, activeContactId, onSelect }: C
                             <div className="mt-2.5 flex items-center gap-2">
                                 <motion.div
                                     className="inline-flex rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:text-slate-300"
-                                    whileHover={{ scale: 1.1 }}
+                                    whileHover={{ scale: 1.03 }}
+                                    transition={hoverTransition}
                                 >
                                     {conversation.message_count} pesan
                                 </motion.div>
                                 {conversation.isGroup ? (
                                     <motion.div
                                         className="inline-flex rounded-full bg-emerald-100/80 dark:bg-emerald-900/40 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300"
-                                        whileHover={{ scale: 1.1 }}
+                                        whileHover={{ scale: 1.03 }}
+                                        transition={hoverTransition}
                                     >
                                         {conversation.memberNames.length} member
                                     </motion.div>

@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from './index';
+import { entranceTransition, hoverTransition } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
 interface StatCardProps {
@@ -13,12 +14,7 @@ interface StatCardProps {
 
 export function StatCard({ label, value, icon: Icon, color = 'default', helper }: StatCardProps) {
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ type: 'spring', stiffness: 100, damping: 15 }}
-            whileHover={{ y: -5, transition: { type: 'spring', stiffness: 400, damping: 17 } }}
-        >
+        <div>
             <Card className="mesh-card overflow-hidden">
                 <CardContent className="flex items-start justify-between gap-3 p-4 sm:p-5 lg:p-6">
                     <div className="min-w-0 flex-1">
@@ -28,9 +24,9 @@ export function StatCard({ label, value, icon: Icon, color = 'default', helper }
                         <motion.p
                             className="mt-2 break-words text-xl font-bold text-foreground sm:mt-2.5 sm:text-2xl"
                             key={value}
-                            initial={{ scale: 1.2, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+                            initial={{ opacity: 0, y: 4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={entranceTransition}
                         >
                             {value}
                         </motion.p>
@@ -42,20 +38,20 @@ export function StatCard({ label, value, icon: Icon, color = 'default', helper }
                     </div>
                     <motion.div
                         className={cn(
-                            'flex shrink-0 items-center justify-center rounded-xl shadow-inner',
+                            'flex shrink-0 transform-gpu items-center justify-center rounded-xl shadow-inner',
                             'h-10 w-10 sm:h-11 sm:w-11 lg:h-12 lg:w-12',
                             color === 'default' && 'bg-slate-900 text-white',
                             color === 'green' && 'bg-emerald-100 text-emerald-700 dark:bg-green-900/20 dark:text-green-400',
                             color === 'red' && 'bg-rose-100 text-rose-700 dark:bg-red-900/20 dark:text-red-400',
                             color === 'yellow' && 'bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400'
                         )}
-                        whileHover={{ rotate: 360, scale: 1.1 }}
-                        transition={{ type: 'spring', stiffness: 200, damping: 10 }}
+                        whileHover={{ scale: 1.04, rotate: 3 }}
+                        transition={hoverTransition}
                     >
                         <Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
                     </motion.div>
                 </CardContent>
             </Card>
-        </motion.div>
+        </div>
     );
 }

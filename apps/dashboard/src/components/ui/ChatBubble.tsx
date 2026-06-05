@@ -1,5 +1,6 @@
 import type { MessageDirection, MessageStatus } from '@whatsapp-bot/shared';
 import { motion } from 'framer-motion';
+import { entranceTransition } from '@/lib/motion';
 import { cn, formatDate } from '@/lib/utils';
 
 interface ChatBubbleProps {
@@ -26,15 +27,16 @@ export function ChatBubble({
         <div className={cn('flex gap-2', outbound ? 'justify-end' : 'justify-start')}>
             <motion.div
                 className={cn(
-                    'max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm transition-all sm:max-w-[80%] lg:max-w-[75%]',
+                    'max-w-[85%] transform-gpu rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm transition-colors sm:max-w-[80%] lg:max-w-[75%]',
                     outbound
                         ? 'bg-primary text-primary-foreground shadow-md shadow-emerald-900/10 dark:shadow-emerald-600/20'
                         : 'border border-white/60 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 text-card-foreground dark:text-slate-100 shadow-sm'
                 )}
-                initial={{ opacity: 0, scale: 0.8, y: 10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-                whileHover={{ scale: 1.02, y: -2 }}
+                initial={{ opacity: 0, x: outbound ? 8 : -8, y: 4 }}
+                animate={{ opacity: 1, x: 0, y: 0 }}
+                transition={entranceTransition}
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.998 }}
             >
                 {senderLabel ? (
                     <p className={cn('mb-1 text-[11px] font-bold', outbound ? 'text-emerald-50/90' : 'text-emerald-700 dark:text-emerald-300')}>

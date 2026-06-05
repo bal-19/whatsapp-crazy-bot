@@ -30,30 +30,11 @@ export function LoginPage() {
     return (
         <div className="relative flex min-h-screen items-center justify-center overflow-hidden p-6 bg-background dark:bg-slate-950">
             <div className="absolute inset-0 dark:bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.15),transparent_25%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.12),transparent_30%),linear-gradient(180deg,#0f172a_0%,#1e293b_100%)] bg-[radial-gradient(circle_at_top_left,rgba(250,204,21,0.25),transparent_25%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.22),transparent_30%),linear-gradient(180deg,#f5fbf7_0%,#eef6f2_100%)]" />
-            <motion.div
+            <div
                 className="absolute left-[10%] top-[12%] h-48 w-48 rounded-full bg-amber-200/30 dark:bg-amber-600/15 blur-3xl"
-                animate={{
-                    scale: [1, 1.2, 1],
-                    opacity: [0.3, 0.5, 0.3],
-                }}
-                transition={{
-                    duration: 8,
-                    repeat: Number.POSITIVE_INFINITY,
-                    ease: 'easeInOut'
-                }}
             />
-            <motion.div
+            <div
                 className="absolute bottom-[10%] right-[12%] h-64 w-64 rounded-full bg-emerald-200/30 dark:bg-emerald-600/15 blur-3xl"
-                animate={{
-                    scale: [1, 1.3, 1],
-                    opacity: [0.3, 0.6, 0.3],
-                }}
-                transition={{
-                    duration: 10,
-                    repeat: Number.POSITIVE_INFINITY,
-                    ease: 'easeInOut',
-                    delay: 1
-                }}
             />
 
             <motion.div
@@ -66,10 +47,11 @@ export function LoginPage() {
                     <CardHeader>
                         <div className="flex items-center gap-3">
                             <motion.div
-                                initial={{ rotate: -180, opacity: 0 }}
-                                animate={{ rotate: 0, opacity: 1 }}
-                                transition={{ delay: 0.2, ...smoothTransition }}
-                                whileHover={{ rotate: 360, scale: 1.1 }}
+                                initial={{ opacity: 0, scale: 0.96 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ delay: 0.08, ...smoothTransition }}
+                                whileHover={{ scale: 1.03 }}
+                                whileTap={{ scale: 0.99 }}
                             >
                                 <BrandMark className="h-12 w-12 rounded-2xl bg-transparent ring-primary/10 dark:bg-slate-950" />
                             </motion.div>

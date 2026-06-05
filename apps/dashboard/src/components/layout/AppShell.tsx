@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
+import { entranceTransition } from '@/lib/motion';
 import { useBotStore } from '@/stores/botStore';
 import { useUIStore } from '@/stores/uiStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -47,43 +48,14 @@ export function AppShell() {
     return (
         <div className="relative min-h-screen overflow-hidden bg-background dark:bg-slate-950 transition-colors">
             <div className="pointer-events-none absolute inset-0">
-                <motion.div
+                <div
                     className="absolute left-[-10rem] top-[-6rem] h-72 w-72 rounded-full bg-emerald-300/15 dark:bg-emerald-600/10 blur-3xl"
-                    animate={{
-                        scale: [1, 1.2, 1],
-                        opacity: [0.3, 0.5, 0.3]
-                    }}
-                    transition={{
-                        duration: 8,
-                        repeat: Number.POSITIVE_INFINITY,
-                        ease: 'easeInOut'
-                    }}
                 />
-                <motion.div
+                <div
                     className="absolute right-[-8rem] top-24 h-80 w-80 rounded-full bg-amber-200/15 dark:bg-orange-600/10 blur-3xl"
-                    animate={{
-                        scale: [1, 1.3, 1],
-                        opacity: [0.3, 0.6, 0.3]
-                    }}
-                    transition={{
-                        duration: 10,
-                        repeat: Number.POSITIVE_INFINITY,
-                        ease: 'easeInOut',
-                        delay: 1
-                    }}
                 />
-                <motion.div
+                <div
                     className="absolute bottom-[-10rem] left-1/3 h-96 w-96 rounded-full bg-lime-200/10 dark:bg-green-600/10 blur-3xl"
-                    animate={{
-                        scale: [1, 1.15, 1],
-                        opacity: [0.2, 0.4, 0.2]
-                    }}
-                    transition={{
-                        duration: 12,
-                        repeat: Number.POSITIVE_INFINITY,
-                        ease: 'easeInOut',
-                        delay: 2
-                    }}
                 />
             </div>
 
@@ -92,9 +64,9 @@ export function AppShell() {
                 <Sidebar />
                 <motion.main
                     className="soft-scrollbar min-h-0 flex-1 overflow-auto rounded-2xl border border-white/50 dark:border-slate-700/50 bg-white/85 dark:bg-slate-900/50 p-5 shadow-sm backdrop-blur-sm sm:p-6 lg:h-[calc(100vh-132px)] lg:rounded-2xl lg:p-6"
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ type: 'spring', stiffness: 100, damping: 20, delay: 0.1 }}
+                    transition={entranceTransition}
                 >
                     <Outlet />
                 </motion.main>

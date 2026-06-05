@@ -1,6 +1,7 @@
 import { QrCode, RefreshCcw, Smartphone } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui';
+import { entranceTransition, hoverTransition } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 import type { BotStatus } from '@whatsapp-bot/shared';
 
@@ -48,33 +49,22 @@ export function WhatsAppQrCard({ status, qrCode, isResettingAuth, canResetAuth =
                     {showQr ? (
                         <motion.div
                             className="mx-auto max-w-xs space-y-4"
-                            initial={{ opacity: 0, scale: 0.9 }}
+                            initial={{ opacity: 0, scale: 0.98, y: 6 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            transition={{ type: 'spring', stiffness: 100, damping: 20 }}
+                            transition={entranceTransition}
                         >
                             <motion.img
                                 src={qrCode!}
                                 alt="WhatsApp QR code"
-                                className="w-full rounded-lg border border-slate-200 bg-white p-2 shadow-sm"
-                                whileHover={{ scale: 1.05 }}
-                                animate={{
-                                    boxShadow: [
-                                        '0 0 0 0 rgba(34, 197, 94, 0.7)',
-                                        '0 0 0 10px rgba(34, 197, 94, 0)',
-                                    ]
-                                }}
-                                transition={{
-                                    boxShadow: {
-                                        duration: 2,
-                                        repeat: Number.POSITIVE_INFINITY
-                                    }
-                                }}
+                                className="w-full transform-gpu rounded-lg border border-slate-200 bg-white p-2 shadow-sm"
+                                whileHover={{ scale: 1.01 }}
+                                transition={hoverTransition}
                             />
                             <motion.p
                                 className="text-center text-xs leading-relaxed text-slate-600"
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.2 }}
+                                transition={{ ...entranceTransition, delay: 0.08 }}
                             >
                                 Buka WhatsApp → Perangkat Tertaut → scan QR code ini
                             </motion.p>
@@ -84,18 +74,12 @@ export function WhatsAppQrCard({ status, qrCode, isResettingAuth, canResetAuth =
                             className="flex min-h-[300px] flex-col items-center justify-center rounded-lg border border-dashed border-emerald-200 bg-emerald-50/40 px-6 text-center"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            transition={{ type: 'spring', stiffness: 100, damping: 20 }}
+                            transition={entranceTransition}
                         >
                             <motion.div
-                                animate={{
-                                    y: [0, -10, 0],
-                                    scale: [1, 1.1, 1]
-                                }}
-                                transition={{
-                                    duration: 3,
-                                    repeat: Number.POSITIVE_INFINITY,
-                                    ease: 'easeInOut'
-                                }}
+                                initial={{ opacity: 0, y: 4 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={entranceTransition}
                             >
                                 <Smartphone className="mb-3 h-8 w-8 text-emerald-600/60" />
                             </motion.div>

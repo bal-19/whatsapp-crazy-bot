@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { motion } from 'framer-motion';
+import { entranceTransition, subtleHover } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
 const Card = React.forwardRef<
@@ -9,14 +10,14 @@ const Card = React.forwardRef<
     <motion.div
         ref={ref}
         className={cn(
-            'rounded-2xl border border-white/60 dark:border-slate-700/50 bg-white/85 dark:bg-slate-900/50 text-card-foreground shadow-sm transition-all hover:shadow-md dark:hover:shadow-lg backdrop-blur-sm lg:rounded-2xl',
+            'transform-gpu rounded-2xl border border-white/60 dark:border-slate-700/50 bg-white/85 dark:bg-slate-900/50 text-card-foreground shadow-sm transition-colors backdrop-blur-sm lg:rounded-2xl',
             className
         )}
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 8 }}
         whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.3 }}
-        transition={{ type: 'spring', stiffness: 100, damping: 20 }}
-        whileHover={{ y: -5 }}
+        viewport={{ once: true, amount: 0.18 }}
+        transition={entranceTransition}
+        whileHover={subtleHover}
         {...(props as any)}
     />
 ));

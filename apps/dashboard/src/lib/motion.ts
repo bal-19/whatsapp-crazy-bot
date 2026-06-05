@@ -4,9 +4,9 @@ import type { Variants } from "framer-motion";
  * Preset animasi untuk page transitions
  */
 export const pageVariants: Variants = {
-    initial: { opacity: 0, y: 20 },
+    initial: { opacity: 0, y: 8 },
     animate: { opacity: 1, y: 0 },
-    exit: { opacity: 0, y: -20 },
+    exit: { opacity: 0, y: -8 },
 };
 
 /**
@@ -29,7 +29,7 @@ export const scaleInVariants: Variants = {
  * Preset animasi untuk slide in dari kiri
  */
 export const slideInLeftVariants: Variants = {
-    hidden: { opacity: 0, x: -30 },
+    hidden: { opacity: 0, x: -12 },
     visible: { opacity: 1, x: 0 },
 };
 
@@ -37,7 +37,7 @@ export const slideInLeftVariants: Variants = {
  * Preset animasi untuk slide in dari kanan
  */
 export const slideInRightVariants: Variants = {
-    hidden: { opacity: 0, x: 30 },
+    hidden: { opacity: 0, x: 12 },
     visible: { opacity: 1, x: 0 },
 };
 
@@ -45,7 +45,7 @@ export const slideInRightVariants: Variants = {
  * Preset animasi untuk slide in dari atas
  */
 export const slideInTopVariants: Variants = {
-    hidden: { opacity: 0, y: -30 },
+    hidden: { opacity: 0, y: -12 },
     visible: { opacity: 1, y: 0 },
 };
 
@@ -53,7 +53,7 @@ export const slideInTopVariants: Variants = {
  * Preset animasi untuk slide in dari bawah
  */
 export const slideInBottomVariants: Variants = {
-    hidden: { opacity: 0, y: 30 },
+    hidden: { opacity: 0, y: 12 },
     visible: { opacity: 1, y: 0 },
 };
 
@@ -66,7 +66,7 @@ export const staggerContainerVariants: Variants = {
         opacity: 1,
         transition: {
             staggerChildren: 0.08,
-            delayChildren: 0.1,
+            delayChildren: 0.04,
         },
     },
 };
@@ -75,14 +75,13 @@ export const staggerContainerVariants: Variants = {
  * Item untuk stagger animation
  */
 export const staggerItemVariants: Variants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0, y: 8 },
     visible: {
         opacity: 1,
         y: 0,
         transition: {
-            type: "spring",
-            stiffness: 100,
-            damping: 12,
+            duration: 0.18,
+            ease: "easeOut",
         },
     },
 };
@@ -92,10 +91,9 @@ export const staggerItemVariants: Variants = {
  */
 export const floatingVariants: Variants = {
     animate: {
-        y: [0, -10, 0],
+        y: -4,
         transition: {
-            duration: 3,
-            repeat: Number.POSITIVE_INFINITY,
+            duration: 0.2,
             ease: "easeInOut",
         },
     },
@@ -106,10 +104,9 @@ export const floatingVariants: Variants = {
  */
 export const pulseVariants: Variants = {
     animate: {
-        scale: [1, 1.05, 1],
+        scale: 1.02,
         transition: {
-            duration: 2,
-            repeat: Number.POSITIVE_INFINITY,
+            duration: 0.16,
             ease: "easeInOut",
         },
     },
@@ -119,17 +116,24 @@ export const pulseVariants: Variants = {
  * Transition default untuk smooth animation
  */
 export const smoothTransition = {
-    type: "spring" as const,
-    stiffness: 100,
-    damping: 15,
-    mass: 0.8,
+    duration: 0.2,
+    ease: "easeOut" as const,
 };
 
 /**
  * Transition untuk hover effects
  */
 export const hoverTransition = {
-    type: "spring" as const,
-    stiffness: 400,
-    damping: 17,
+    duration: 0.12,
+    ease: "easeOut" as const,
+};
+
+export const entranceTransition = {
+    duration: 0.18,
+    ease: "easeOut" as const,
+};
+
+export const subtleHover = {
+    y: -2,
+    scale: 1.005,
 };

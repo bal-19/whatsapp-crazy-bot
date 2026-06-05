@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Slot } from '@radix-ui/react-slot';
 import { motion } from 'framer-motion';
 import { cva, type VariantProps } from 'class-variance-authority';
+import { hoverTransition } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
@@ -41,15 +42,23 @@ export interface ButtonProps
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ({ className, variant, size, asChild = false, ...props }, ref) => {
-        const Component = asChild ? Slot : motion.button;
+        if (asChild) {
+            return (
+                <Slot
+                    className={cn(buttonVariants({ variant, size, className }))}
+                    ref={ref}
+                    {...props}
+                />
+            );
+        }
 
         return (
-            <Component
+            <motion.button
                 className={cn(buttonVariants({ variant, size, className }))}
                 ref={ref}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                whileHover={{ scale: 1.015 }}
+                whileTap={{ scale: 0.985 }}
+                transition={hoverTransition}
                 {...(props as any)}
             />
         );

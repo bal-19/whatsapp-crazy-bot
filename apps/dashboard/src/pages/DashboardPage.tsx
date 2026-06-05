@@ -79,13 +79,11 @@ export function DashboardPage() {
                                     transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                                 >
                                     <span className="text-sm text-slate-600 dark:text-slate-400">Status koneksi</span>
-                                    <motion.span
+                                    <span
                                         className="text-sm font-semibold text-slate-900 dark:text-slate-50"
-                                        animate={status === 'connected' ? { scale: [1, 1.1, 1] } : {}}
-                                        transition={{ duration: 2, repeat: status === 'connected' ? Number.POSITIVE_INFINITY : 0 }}
                                     >
                                         {status === 'connected' ? 'Online' : status}
-                                    </motion.span>
+                                    </span>
                                 </motion.div>
                                 <motion.div
                                     className="flex items-center justify-between rounded-2xl bg-slate-50 dark:bg-slate-700/40 px-5 py-3.5"
@@ -101,13 +99,11 @@ export function DashboardPage() {
                                     transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                                 >
                                     <span className="text-sm text-slate-600 dark:text-slate-400">Queue Gemini</span>
-                                    <motion.span
+                                    <span
                                         className="text-sm font-semibold text-slate-900 dark:text-slate-50"
-                                        animate={queueSize > 20 ? { scale: [1, 1.15, 1] } : {}}
-                                        transition={{ duration: 1, repeat: queueSize > 20 ? Number.POSITIVE_INFINITY : 0 }}
                                     >
                                         {queueSize}
-                                    </motion.span>
+                                    </span>
                                 </motion.div>
                             </div>
                         </motion.div>
@@ -230,7 +226,7 @@ export function DashboardPage() {
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.6 + index * 0.08, ...smoothTransition }}
-                                    whileHover={{ scale: 1.02, backgroundColor: 'rgba(16, 185, 129, 0.05)' }}
+                                    whileHover={{ scale: 1.01 }}
                                 >
                                     {command}
                                 </motion.div>

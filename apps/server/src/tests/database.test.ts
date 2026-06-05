@@ -139,6 +139,36 @@ describe('appDb group metadata', () => {
 });
 
 describe('appDb personal memories', () => {
+  it('preserves message timestamp separate from created_at for conversation ordering', async () => {
+    const contactId = `timestamp-${Date.now()}@s.whatsapp.net`;
+    const firstTimestamp = '2026-06-01T10:00:00.000Z';
+    const secondTimestamp = '2026-06-01T10:05:00.000Z';
+
+    await appDb.insertMessage({
+      id: `msg-a-${Date.now()}`,
+      contact_id: contactId,
+      direction: 'inbound',
+      body: 'pesan pertama',
+      message_timestamp: firstTimestamp
+    });
+    await appDb.insertMessage({
+      id: `msg-b-${Date.now()}`,
+      contact_id: contactId,
+      direction: 'outbound',
+      body: 'pesan kedua',
+      message_timestamp: secondTimestamp
+    });
+
+    const detail = await appDb.getConversation(contactId);
+    assert.ok(detail);
+    assert.equal(detail.messages[0]?.message_timestamp, firstTimestamp);
+    assert.equal(detail.messages[1]?.message_timestamp, secondTimestamp);
+
+    const summaries = await appDb.listConversations();
+    const summary = summaries.data.find((item) => item.contact_id === contactId);
+    assert.equal(summary?.last_message_at, secondTimestamp);
+  });
+
   it('stores and clears memories per scoped contact id', async () => {
     const contactId = `group@g.us::62812${Date.now()}@s.whatsapp.net`;
 

@@ -99,6 +99,7 @@ interface MessageRow {
     tokens_used: number | null;
     latency_ms: number | null;
     raw_payload: Record<string, unknown> | null;
+    message_timestamp: string;
     created_at: string;
 }
 
@@ -189,6 +190,7 @@ interface DatabaseAdapter {
         tokens_used?: number | null;
         latency_ms?: number | null;
         raw_payload?: Record<string, unknown> | null;
+        message_timestamp?: string | null;
     }): Promise<Message>;
     listConversations(
         page?: number,
@@ -560,6 +562,7 @@ class InMemoryDatabase implements DatabaseAdapter {
         tokens_used?: number | null;
         latency_ms?: number | null;
         raw_payload?: Record<string, unknown> | null;
+        message_timestamp?: string | null;
     }): Promise<Message> {
         this.ensureConversationScope(input.contact_id);
 
@@ -575,6 +578,7 @@ class InMemoryDatabase implements DatabaseAdapter {
             tokens_used: input.tokens_used ?? null,
             latency_ms: input.latency_ms ?? null,
             raw_payload: input.raw_payload ?? null,
+            message_timestamp: input.message_timestamp ?? now,
             created_at: now,
         };
 
@@ -608,7 +612,8 @@ class InMemoryDatabase implements DatabaseAdapter {
                     )
                     .sort(
                         (a, b) =>
-                            Date.parse(b.created_at) - Date.parse(a.created_at),
+                            Date.parse(b.message_timestamp) -
+                            Date.parse(a.message_timestamp),
                     );
 
                 if (contactMessages.length === 0) return null;
@@ -635,7 +640,7 @@ class InMemoryDatabase implements DatabaseAdapter {
                     contact_name: contact.display_name,
                     group_name: this.resolveGroupName(scope.scope_key),
                     last_message: contactMessages[0]!.body,
-                    last_message_at: contactMessages[0]!.created_at,
+                    last_message_at: contactMessages[0]!.message_timestamp,
                     message_count: contactMessages.length,
                     avg_response_time_ms: avgResponseTimeMs,
                 } satisfies ConversationSummary;
@@ -671,7 +676,11 @@ class InMemoryDatabase implements DatabaseAdapter {
 
         const messages = this.messages
             .filter((message) => message.contact_id === contactId)
-            .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))
+            .sort(
+                (a, b) =>
+                    Date.parse(a.message_timestamp) -
+                    Date.parse(b.message_timestamp),
+            )
             .map((message) => mapMessageRow(message, contactId));
 
         return {
@@ -692,7 +701,11 @@ class InMemoryDatabase implements DatabaseAdapter {
     async getRecentHistory(contactId: string, limit = 20): Promise<Message[]> {
         return this.messages
             .filter((message) => message.contact_id === contactId)
-            .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+            .sort(
+                (a, b) =>
+                    Date.parse(b.message_timestamp) -
+                    Date.parse(a.message_timestamp),
+            )
             .slice(0, limit)
             .reverse()
             .map((message) => mapMessageRow(message, contactId));
@@ -1044,6 +1057,7 @@ class SupabaseDatabase implements DatabaseAdapter {
         tokens_used?: number | null;
         latency_ms?: number | null;
         raw_payload?: Record<string, unknown> | null;
+        message_timestamp?: string | null;
     }): Promise<Message> {
         await this.ready;
         const scope = await this.ensureConversationScope(input.contact_id);
@@ -1058,6 +1072,7 @@ class SupabaseDatabase implements DatabaseAdapter {
             tokens_used: input.tokens_used ?? null,
             latency_ms: input.latency_ms ?? null,
             raw_payload: input.raw_payload ?? null,
+            message_timestamp: input.message_timestamp ?? new Date().toISOString(),
         };
 
         const { data, error } = await supabaseAdmin!
@@ -1123,6 +1138,7 @@ class SupabaseDatabase implements DatabaseAdapter {
             .from("messages")
             .select("*")
             .eq("contact_id", scope.id)
+            .order("message_timestamp", { ascending: true })
             .order("created_at", { ascending: true });
 
         assertSupabaseSuccess(
@@ -1165,6 +1181,7 @@ class SupabaseDatabase implements DatabaseAdapter {
             .from("messages")
             .select("*")
             .eq("contact_id", scope.id)
+            .order("message_timestamp", { ascending: false })
             .order("created_at", { ascending: false })
             .limit(limit);
 
@@ -1705,6 +1722,7 @@ function mapMessageRow(row: MessageRow, contactJid: string): Message {
         ai_model: row.ai_model,
         tokens_used: row.tokens_used,
         latency_ms: row.latency_ms,
+        message_timestamp: row.message_timestamp,
         created_at: row.created_at,
     };
 }

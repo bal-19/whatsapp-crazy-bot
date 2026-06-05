@@ -17,7 +17,7 @@ export function ConversationsPage() {
             activeThread
                 ? activeThread.conversationIds
                       .flatMap((contactId) => messages[contactId] ?? [])
-                      .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))
+                      .sort((a, b) => Date.parse(a.message_timestamp) - Date.parse(b.message_timestamp))
                 : [],
         [activeThread, messages]
     );

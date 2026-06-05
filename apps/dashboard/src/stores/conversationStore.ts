@@ -46,7 +46,7 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
       const current = state.messages[contactId] ?? [];
       const conversations = upsertPreview(state.conversations, contactId, message);
       return {
-        messages: { ...state.messages, [contactId]: [...current, message] },
+      messages: { ...state.messages, [contactId]: [...current, message] },
         conversations
       };
     }),
@@ -65,7 +65,7 @@ function upsertPreview(conversations: ConversationSummary[], contactId: string, 
     ? {
         ...existing,
         last_message: message.body,
-        last_message_at: message.created_at,
+        last_message_at: message.message_timestamp,
         message_count: existing.message_count + 1
       }
     : {
@@ -73,7 +73,7 @@ function upsertPreview(conversations: ConversationSummary[], contactId: string, 
         contact_name: contactId,
         group_name: null,
         last_message: message.body,
-        last_message_at: message.created_at,
+        last_message_at: message.message_timestamp,
         message_count: 1,
         avg_response_time_ms: message.latency_ms
       };

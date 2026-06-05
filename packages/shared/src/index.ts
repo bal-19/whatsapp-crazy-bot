@@ -64,6 +64,7 @@ export interface Message {
     ai_model: string | null;
     tokens_used: number | null;
     latency_ms: number | null;
+    message_timestamp: string;
     created_at: string;
 }
 

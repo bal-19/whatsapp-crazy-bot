@@ -45,7 +45,7 @@ export function ChatWindow({ title, subtitle, messages, isGroup = false, senderN
                                         key={message.id}
                                         direction={message.direction}
                                         content={message.body}
-                                        timestamp={message.created_at}
+                                        timestamp={message.message_timestamp}
                                         status={message.status}
                                         senderLabel={isGroup && message.direction === 'inbound' ? senderName : null}
                                         quotedAuthor={quotedSenderName}

@@ -247,12 +247,14 @@ export class BotManager {
         }
 
         const contactName = message.pushName ?? null;
+        const inboundTimestamp = toMessageTimestampIso(message.messageTimestamp);
         await appDb.upsertContact(scope.contactJid, contactName);
         const inbound = await appDb.insertMessage({
             id: messageId,
             contact_id: scope.contactId,
             direction: "inbound",
             body: text,
+            message_timestamp: inboundTimestamp,
         });
         emitNewMessage(scope.contactId, inbound);
         emitAnalyticsUpdate(await appDb.getAnalyticsSummary());
@@ -286,6 +288,7 @@ export class BotManager {
                 contact_id: scope.contactId,
                 direction: "inbound",
                 body: text,
+                message_timestamp: inboundTimestamp,
             });
             emitNewMessage(scope.contactId, resetInbound);
             await this.sendAndLog(
@@ -438,6 +441,7 @@ export class BotManager {
             ai_model: aiModel,
             latency_ms: latencyMs,
             raw_payload: rawPayload,
+            message_timestamp: new Date().toISOString(),
         });
         emitNewMessage(scope.contactId, outbound);
         emitAnalyticsUpdate(await appDb.getAnalyticsSummary());
@@ -487,6 +491,30 @@ function extractText(message: proto.IWebMessageInfo): string | null {
 
 function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
+}
+
+function toMessageTimestampIso(
+    value: proto.IWebMessageInfo["messageTimestamp"],
+): string {
+    if (typeof value === "number") {
+        return new Date(value * 1000).toISOString();
+    }
+
+    if (typeof value === "bigint") {
+        return new Date(Number(value) * 1000).toISOString();
+    }
+
+    if (value && typeof value === "object") {
+        if ("low" in value && typeof value.low === "number") {
+            return new Date(value.low * 1000).toISOString();
+        }
+
+        if ("toNumber" in value && typeof value.toNumber === "function") {
+            return new Date(value.toNumber() * 1000).toISOString();
+        }
+    }
+
+    return new Date().toISOString();
 }
 
 export const botManager = new BotManager();

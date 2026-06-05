@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bot, LockKeyhole, Sparkles } from 'lucide-react';
+import { LockKeyhole } from 'lucide-react';
 import { authService } from '@/lib/services/authService';
 import { useAuthStore } from '@/stores/authStore';
 import { Button, Input, Card, CardContent, CardHeader, CardTitle, CardDescription, Label } from '@/components/ui';
+import { BrandMark } from '@/components/layout/BrandMark';
 
 export function LoginPage() {
     const navigate = useNavigate();
@@ -34,9 +35,7 @@ export function LoginPage() {
                 <Card className="w-full">
                     <CardHeader>
                         <div className="flex items-center gap-3">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-                                <Bot className="h-5 w-5" />
-                            </div>
+                            <BrandMark className="h-12 w-12 rounded-2xl bg-transparent ring-primary/10 dark:bg-slate-950" />
                             <div>
                                 <CardTitle>Masuk Dashboard</CardTitle>
                                 <CardDescription>Kelola bot WhatsApp dari satu tempat.</CardDescription>

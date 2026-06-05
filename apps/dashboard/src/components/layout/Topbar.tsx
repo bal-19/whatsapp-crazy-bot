@@ -4,6 +4,7 @@ import { useBotStore } from '@/stores/botStore';
 import { useAuthStore } from '@/stores/authStore';
 import { StatusBadge, Button, ThemeToggle } from '@/components/ui';
 import { formatDuration } from '@/lib/utils';
+import { BrandMark } from './BrandMark';
 
 export function Topbar() {
     const navigate = useNavigate();
@@ -21,9 +22,7 @@ export function Topbar() {
         <header className="sticky top-0 z-30 border-b border-white/30 bg-white/85 dark:border-slate-700/50 dark:bg-slate-950/85 backdrop-blur-xl transition-all">
             <div className="mx-auto flex h-20 w-full max-w-screen-2xl items-center justify-between gap-4 px-4 sm:px-5 lg:px-5">
                 <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-950 dark:bg-white text-sm font-bold text-white dark:text-slate-950 shadow-sm">
-                        WA
-                    </div>
+                    <BrandMark className="h-11 w-11 rounded-lg" />
                     <div className="min-w-0">
                         <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Operations</p>
                         <p className="truncate text-base font-bold text-foreground">WhatsApp AI Bot</p>

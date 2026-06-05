@@ -5,6 +5,7 @@ import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
 import { useState } from 'react';
+import { BrandMark } from './BrandMark';
 
 interface MenuItem {
     to?: string;
@@ -152,9 +153,7 @@ export function Sidebar() {
             {/* Header */}
             <div className="hidden rounded-xl border border-emerald-100/70 dark:border-emerald-600/30 bg-emerald-50/50 dark:bg-emerald-950/40 p-4 lg:block lg:flex-shrink-0">
                 <div className="flex items-center gap-2.5">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-950 dark:bg-white text-xs font-bold text-white dark:text-slate-950 shadow-sm">
-                        WA
-                    </div>
+                    <BrandMark className="h-10 w-10 rounded-lg" />
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Control</p>
                         <h2 className="text-base font-bold text-slate-900 dark:text-slate-50">WhatsApp AI</h2>

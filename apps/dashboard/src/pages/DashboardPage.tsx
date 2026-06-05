@@ -1,6 +1,7 @@
 import { Activity, Gauge, MessageCircle, Sparkles, Timer } from 'lucide-react';
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Badge, StatCard, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui';
 import { MessageVolumeChart } from '@/components/features/analytics/MessageVolumeChart';
 import { WhatsAppQrCard } from '@/components/features/dashboard/WhatsAppQrCard';
@@ -8,6 +9,7 @@ import { useBotStore } from '@/stores/botStore';
 import { useConversationStore } from '@/stores/conversationStore';
 import { useAuthStore } from '@/stores/authStore';
 import { formatConversationSubtitle, formatConversationTitle, formatDate } from '@/lib/utils';
+import { staggerContainerVariants, staggerItemVariants, smoothTransition } from '@/lib/motion';
 
 const ACTIVE_COMMANDS = [
     '/list atau /help untuk daftar command',
@@ -30,51 +32,103 @@ export function DashboardPage() {
     }, [loadAnalytics, loadConversations]);
 
     return (
-        <div className="space-y-6 sm:space-y-7 lg:space-y-8">
-            <Card className="mesh-card overflow-hidden">
-                <CardContent className="grid gap-6 p-6 sm:gap-7 sm:p-7 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-8 lg:p-8">
-                    <div className="space-y-5">
-                        <Badge variant="secondary" className="w-fit rounded-full border-0 bg-white/80 px-3.5 py-1.5 text-emerald-700">
-                            <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-                            Live Control Center
-                        </Badge>
-                        <div>
-                            <h1 className="text-2xl font-bold text-foreground sm:text-3xl lg:text-4xl">Dashboard Operasional Bot</h1>
-                            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-[15px]">
-                                Semua data inti tetap sama, tapi sekarang tampilannya lebih fokus ke prioritas harian:
-                                status bot, volume pesan, antrian Gemini, dan percakapan terbaru.
-                            </p>
+        <motion.div
+            className="space-y-6 sm:space-y-7 lg:space-y-8"
+            initial="hidden"
+            animate="visible"
+            variants={staggerContainerVariants}
+        >
+            <motion.div variants={staggerItemVariants}>
+                <Card className="mesh-card overflow-hidden">
+                    <CardContent className="grid gap-6 p-6 sm:gap-7 sm:p-7 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-8 lg:p-8">
+                        <div className="space-y-5">
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ delay: 0.2, ...smoothTransition }}
+                            >
+                                <Badge variant="secondary" className="w-fit rounded-full border-0 bg-white/80 px-3.5 py-1.5 text-emerald-700">
+                                    <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                                    Live Control Center
+                                </Badge>
+                            </motion.div>
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.3, ...smoothTransition }}
+                            >
+                                <h1 className="text-2xl font-bold text-foreground sm:text-3xl lg:text-4xl">Dashboard Operasional Bot</h1>
+                                <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-[15px]">
+                                    Semua data inti tetap sama, tapi sekarang tampilannya lebih fokus ke prioritas harian:
+                                    status bot, volume pesan, antrian Gemini, dan percakapan terbaru.
+                                </p>
+                            </motion.div>
                         </div>
-                    </div>
 
-                    <div className="rounded-[1.5rem] border border-emerald-100 dark:border-emerald-600/30 bg-white/80 dark:bg-slate-800 p-5 shadow-sm sm:p-6">
-                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700 dark:text-emerald-400">Quick Pulse</p>
-                        <div className="mt-5 space-y-3.5">
-                            <div className="flex items-center justify-between rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 px-5 py-3.5">
-                                <span className="text-sm text-slate-600 dark:text-slate-400">Status koneksi</span>
-                                <span className="text-sm font-semibold text-slate-900 dark:text-slate-50">{status === 'connected' ? 'Online' : status}</span>
+                        <motion.div
+                            className="rounded-[1.5rem] border border-emerald-100 dark:border-emerald-600/30 bg-white/80 dark:bg-slate-800 p-5 shadow-sm sm:p-6"
+                            initial={{ opacity: 0, x: 30 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.4, ...smoothTransition }}
+                        >
+                            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700 dark:text-emerald-400">Quick Pulse</p>
+                            <div className="mt-5 space-y-3.5">
+                                <motion.div
+                                    className="flex items-center justify-between rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 px-5 py-3.5"
+                                    whileHover={{ scale: 1.02 }}
+                                    transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                                >
+                                    <span className="text-sm text-slate-600 dark:text-slate-400">Status koneksi</span>
+                                    <motion.span
+                                        className="text-sm font-semibold text-slate-900 dark:text-slate-50"
+                                        animate={status === 'connected' ? { scale: [1, 1.1, 1] } : {}}
+                                        transition={{ duration: 2, repeat: status === 'connected' ? Number.POSITIVE_INFINITY : 0 }}
+                                    >
+                                        {status === 'connected' ? 'Online' : status}
+                                    </motion.span>
+                                </motion.div>
+                                <motion.div
+                                    className="flex items-center justify-between rounded-2xl bg-slate-50 dark:bg-slate-700/40 px-5 py-3.5"
+                                    whileHover={{ scale: 1.02 }}
+                                    transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                                >
+                                    <span className="text-sm text-slate-600 dark:text-slate-400">Pesan hari ini</span>
+                                    <span className="text-sm font-semibold text-slate-900 dark:text-slate-50">{totalMessagesToday}</span>
+                                </motion.div>
+                                <motion.div
+                                    className="flex items-center justify-between rounded-2xl bg-amber-50 dark:bg-amber-950/40 px-5 py-3.5"
+                                    whileHover={{ scale: 1.02 }}
+                                    transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+                                >
+                                    <span className="text-sm text-slate-600 dark:text-slate-400">Queue Gemini</span>
+                                    <motion.span
+                                        className="text-sm font-semibold text-slate-900 dark:text-slate-50"
+                                        animate={queueSize > 20 ? { scale: [1, 1.15, 1] } : {}}
+                                        transition={{ duration: 1, repeat: queueSize > 20 ? Number.POSITIVE_INFINITY : 0 }}
+                                    >
+                                        {queueSize}
+                                    </motion.span>
+                                </motion.div>
                             </div>
-                            <div className="flex items-center justify-between rounded-2xl bg-slate-50 dark:bg-slate-700/40 px-5 py-3.5">
-                                <span className="text-sm text-slate-600 dark:text-slate-400">Pesan hari ini</span>
-                                <span className="text-sm font-semibold text-slate-900 dark:text-slate-50">{totalMessagesToday}</span>
-                            </div>
-                            <div className="flex items-center justify-between rounded-2xl bg-amber-50 dark:bg-amber-950/40 px-5 py-3.5">
-                                <span className="text-sm text-slate-600 dark:text-slate-400">Queue Gemini</span>
-                                <span className="text-sm font-semibold text-slate-900 dark:text-slate-50">{queueSize}</span>
-                            </div>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
+                        </motion.div>
+                    </CardContent>
+                </Card>
+            </motion.div>
 
-            <div className="grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-2 xl:grid-cols-4">
+            <motion.div
+                className="grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-2 xl:grid-cols-4"
+                variants={staggerItemVariants}
+            >
                 <StatCard label="Status Bot" value={status === 'connected' ? 'Online' : status} icon={Activity} color="green" />
                 <StatCard label="Pesan Hari Ini" value={totalMessagesToday} icon={MessageCircle} />
                 <StatCard label="Queue Gemini" value={queueSize} icon={Gauge} color={queueSize > 20 ? 'yellow' : 'default'} />
                 <StatCard label="Avg Response" value={`${analytics?.avg_response_time_ms ?? 0} ms`} icon={Timer} />
-            </div>
+            </motion.div>
 
-            <div className="grid grid-cols-1 gap-6 sm:gap-7 2xl:grid-cols-[minmax(0,1fr)_400px]">
+            <motion.div
+                className="grid grid-cols-1 gap-6 sm:gap-7 2xl:grid-cols-[minmax(0,1fr)_400px]"
+                variants={staggerItemVariants}
+            >
                 <Card>
                     <CardHeader>
                         <CardTitle>Engagement Trend 7 Hari</CardTitle>
@@ -98,8 +152,15 @@ export function DashboardPage() {
                         ) : null}
                     </CardHeader>
                     <CardContent className="space-y-3.5">
-                        {conversations.slice(0, 5).map((conversation) => (
-                            <div key={conversation.contact_id} className="rounded-[1.25rem] border border-white/70 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800 p-4 shadow-sm">
+                        {conversations.slice(0, 5).map((conversation, index) => (
+                            <motion.div
+                                key={conversation.contact_id}
+                                className="rounded-[1.25rem] border border-white/70 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800 p-4 shadow-sm"
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: index * 0.1, ...smoothTransition }}
+                                whileHover={{ scale: 1.02, x: 5 }}
+                            >
                                 <div className="flex items-center justify-between gap-3">
                                     <p className="truncate text-sm font-semibold text-foreground">
                                         {formatConversationTitle(conversation.contact_id, conversation.contact_name)}
@@ -112,13 +173,16 @@ export function DashboardPage() {
                                     </p>
                                 ) : null}
                                 <p className="mt-2 truncate text-xs leading-relaxed text-muted-foreground">{conversation.last_message}</p>
-                            </div>
+                            </motion.div>
                         ))}
                     </CardContent>
                 </Card>
-            </div>
+            </motion.div>
 
-            <div className="grid grid-cols-1 gap-6 sm:gap-7 2xl:grid-cols-[minmax(0,1fr)_340px]">
+            <motion.div
+                className="grid grid-cols-1 gap-6 sm:gap-7 2xl:grid-cols-[minmax(0,1fr)_340px]"
+                variants={staggerItemVariants}
+            >
                 <WhatsAppQrCard
                     status={status}
                     qrCode={qrCode}
@@ -127,38 +191,54 @@ export function DashboardPage() {
                     onResetAuth={() => void resetAuth()}
                 />
 
-                <Card className="mesh-card">
-                    <CardHeader>
-                        <CardTitle>Catatan Operasional</CardTitle>
-                        <CardDescription>Panel ringkas agar tim cepat membaca kondisi sistem.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3.5 text-sm text-slate-600 dark:text-slate-400">
-                        <div className="rounded-2xl bg-white/80 dark:bg-slate-800 p-4 leading-relaxed">
-                            Bila `Queue Gemini` mulai naik, prioritaskan cek rate limit atau lonjakan traffic grup.
-                        </div>
-                        <div className="rounded-2xl bg-white/80 dark:bg-slate-800 p-4 leading-relaxed">
-                            QR pairing tetap tampil hanya saat bot belum connected, jadi alurnya masih aman seperti sebelumnya.
-                        </div>
-                        <div className="rounded-2xl bg-white/80 dark:bg-slate-800 p-4 leading-relaxed">
-                            Semua konten halaman tetap sama, yang berubah hanya struktur visual dan hirarki informasinya.
-                        </div>
-                    </CardContent>
-                </Card>
+                <div className="space-y-6 sm:space-y-7">
+                    <Card className="mesh-card">
+                        <CardHeader>
+                            <CardTitle>Catatan Operasional</CardTitle>
+                            <CardDescription>Panel ringkas agar tim cepat membaca kondisi sistem.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3.5 text-sm text-slate-600 dark:text-slate-400">
+                            {[
+                                'Bila `Queue Gemini` mulai naik, prioritaskan cek rate limit atau lonjakan traffic grup.',
+                                'QR pairing tetap tampil hanya saat bot belum connected, jadi alurnya masih aman seperti sebelumnya.',
+                                'Semua konten halaman tetap sama, yang berubah hanya struktur visual dan hirarki informasinya.'
+                            ].map((note, index) => (
+                                <motion.div
+                                    key={index}
+                                    className="rounded-2xl bg-white/80 dark:bg-slate-800 p-4 leading-relaxed"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.5 + index * 0.1, ...smoothTransition }}
+                                    whileHover={{ scale: 1.02 }}
+                                >
+                                    {note}
+                                </motion.div>
+                            ))}
+                        </CardContent>
+                    </Card>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Command Aktif</CardTitle>
-                        <CardDescription>Ringkasan fitur user-facing yang saat ini sudah tersedia di bot.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-2.5 text-sm text-slate-600 dark:text-slate-400">
-                        {ACTIVE_COMMANDS.map((command) => (
-                            <div key={command} className="rounded-2xl bg-white/80 dark:bg-slate-800 p-4 leading-relaxed">
-                                {command}
-                            </div>
-                        ))}
-                    </CardContent>
-                </Card>
-            </div>
-        </div>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Command Aktif</CardTitle>
+                            <CardDescription>Ringkasan fitur user-facing yang saat ini sudah tersedia di bot.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-2.5 text-sm text-slate-600 dark:text-slate-400">
+                            {ACTIVE_COMMANDS.map((command, index) => (
+                                <motion.div
+                                    key={command}
+                                    className="rounded-2xl bg-white/80 dark:bg-slate-800 p-4 leading-relaxed"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.6 + index * 0.08, ...smoothTransition }}
+                                    whileHover={{ scale: 1.02, backgroundColor: 'rgba(16, 185, 129, 0.05)' }}
+                                >
+                                    {command}
+                                </motion.div>
+                            ))}
+                        </CardContent>
+                    </Card>
+                </div>
+            </motion.div>
+        </motion.div>
     );
 }

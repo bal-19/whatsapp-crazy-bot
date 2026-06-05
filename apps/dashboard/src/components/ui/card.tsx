@@ -1,17 +1,23 @@
 import * as React from 'react';
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 const Card = React.forwardRef<
     HTMLDivElement,
     React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
-    <div
+    <motion.div
         ref={ref}
         className={cn(
             'rounded-2xl border border-white/60 dark:border-slate-700/50 bg-white/85 dark:bg-slate-900/50 text-card-foreground shadow-sm transition-all hover:shadow-md dark:hover:shadow-lg backdrop-blur-sm lg:rounded-2xl',
             className
         )}
-        {...props}
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.3 }}
+        transition={{ type: 'spring', stiffness: 100, damping: 20 }}
+        whileHover={{ y: -5 }}
+        {...(props as any)}
     />
 ));
 Card.displayName = 'Card';

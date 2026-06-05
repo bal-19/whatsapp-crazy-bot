@@ -2,6 +2,7 @@ import { BarChart3, ContactRound, LayoutDashboard, MessageSquare, Settings2, Shi
 import type { LucideIcon } from 'lucide-react';
 import type { DashboardPermission } from '@whatsapp-bot/shared';
 import { NavLink } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
 import { useState } from 'react';
@@ -72,7 +73,7 @@ export function Sidebar() {
             const isExpanded = expandedMenus.has(item.label);
             return (
                 <div key={item.label} className="mb-1">
-                    <button
+                    <motion.button
                         type="button"
                         onClick={() => toggleMenu(item.label)}
                         className={cn(
@@ -82,33 +83,45 @@ export function Sidebar() {
                             'hover:bg-emerald-50/70 dark:hover:bg-emerald-950/40',
                             'hover:text-slate-900 dark:hover:text-slate-50'
                         )}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
                     >
                         <div className="flex items-center gap-2.5 lg:flex-1 lg:gap-2">
-                            <div
+                            <motion.div
                                 className={cn(
                                     iconBase,
                                     'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400',
                                     'group-hover:bg-emerald-100/70 dark:group-hover:bg-emerald-900/50',
                                     'group-hover:text-emerald-700 dark:group-hover:text-emerald-400'
                                 )}
+                                whileHover={{ rotate: 15 }}
+                                transition={{ type: 'spring', stiffness: 300 }}
                             >
                                 <item.icon className="h-4 w-4 shrink-0" />
-                            </div>
+                            </motion.div>
                             <span className="block truncate text-xs text-left font-medium">{item.label}</span>
                         </div>
-                        <ChevronDown
-                            className={cn(
-                                'h-4 w-4 shrink-0 transition-transform hidden lg:block flex-shrink-0',
-                                isExpanded && 'rotate-180'
-                            )}
-                        />
-                    </button>
+                        <motion.div
+                            animate={{ rotate: isExpanded ? 180 : 0 }}
+                            transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+                        >
+                            <ChevronDown className="h-4 w-4 shrink-0 hidden lg:block flex-shrink-0" />
+                        </motion.div>
+                    </motion.button>
 
-                    {isExpanded && (
-                        <div className="mb-1 space-y-1 lg:ml-4 lg:border-l lg:border-slate-200 dark:lg:border-slate-700 lg:pl-3">
-                            {item.children.map((child) => renderMenuItem(child, depth + 1))}
-                        </div>
-                    )}
+                    <AnimatePresence>
+                        {isExpanded && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                                className="mb-1 space-y-1 lg:ml-4 lg:border-l lg:border-slate-200 dark:lg:border-slate-700 lg:pl-3 overflow-hidden"
+                            >
+                                {item.children.map((child) => renderMenuItem(child, depth + 1))}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
             );
         }
@@ -121,28 +134,35 @@ export function Sidebar() {
                 className="mb-1 block"
             >
                 {({ isActive }) => (
-                    <div
+                    <motion.div
                         className={cn(
                             menuItemBase,
                             isActive
                                 ? 'bg-slate-950 dark:bg-white text-white dark:text-slate-950 shadow-sm'
                                 : 'text-slate-600 dark:text-slate-400 hover:bg-emerald-50/70 dark:hover:bg-emerald-950/40 hover:text-slate-900 dark:hover:text-slate-50'
                         )}
+                        whileHover={{ scale: 1.02, x: 5 }}
+                        whileTap={{ scale: 0.98 }}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                     >
-                        <div
+                        <motion.div
                             className={cn(
                                 iconBase,
                                 isActive
                                     ? 'bg-white/20 dark:bg-slate-950/20 text-white dark:text-slate-950'
                                     : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 group-hover:bg-emerald-100/70 dark:group-hover:bg-emerald-900/50 group-hover:text-emerald-700 dark:group-hover:text-emerald-400'
                             )}
+                            whileHover={{ rotate: 360 }}
+                            transition={{ type: 'spring', stiffness: 200, damping: 15 }}
                         >
                             <item.icon className="h-4 w-4 shrink-0" />
-                        </div>
+                        </motion.div>
                         <div className="min-w-0">
                             <span className="block truncate text-xs">{item.label}</span>
                         </div>
-                    </div>
+                    </motion.div>
                 )}
             </NavLink>
         );
@@ -151,9 +171,19 @@ export function Sidebar() {
     return (
         <aside className="w-full shrink-0 rounded-2xl border border-white/60 dark:border-slate-700/50 bg-white/85 dark:bg-slate-900/50 p-4 text-slate-900 dark:text-slate-50 backdrop-blur-sm sm:p-5 lg:h-[calc(100vh-132px)] lg:w-64 lg:max-w-64 lg:rounded-2xl lg:p-5 transition-colors overflow-hidden flex flex-col lg:flex-col lg:overflow-hidden">
             {/* Header */}
-            <div className="hidden rounded-xl border border-emerald-100/70 dark:border-emerald-600/30 bg-emerald-50/50 dark:bg-emerald-950/40 p-4 lg:block lg:flex-shrink-0">
+            <motion.div
+                className="hidden rounded-xl border border-emerald-100/70 dark:border-emerald-600/30 bg-emerald-50/50 dark:bg-emerald-950/40 p-4 lg:block lg:flex-shrink-0"
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ type: 'spring', stiffness: 100, damping: 20 }}
+            >
                 <div className="flex items-center gap-2.5">
-                    <BrandMark className="h-10 w-10 rounded-lg" />
+                    <motion.div
+                        whileHover={{ rotate: 360, scale: 1.1 }}
+                        transition={{ type: 'spring', stiffness: 200, damping: 10 }}
+                    >
+                        <BrandMark className="h-10 w-10 rounded-lg" />
+                    </motion.div>
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Control</p>
                         <h2 className="text-base font-bold text-slate-900 dark:text-slate-50">WhatsApp AI</h2>
@@ -162,20 +192,30 @@ export function Sidebar() {
                 <p className="mt-3 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
                     Dashboard untuk memantau percakapan, analytics, dan konfigurasi bot.
                 </p>
-            </div>
+            </motion.div>
 
             {/* Navigation */}
-            <nav className="soft-scrollbar -mx-1 mt-4 flex gap-2 overflow-x-auto px-1 lg:mx-0 lg:mt-5 lg:block lg:overflow-y-auto lg:flex-1 lg:px-0">
+            <motion.nav
+                className="soft-scrollbar -mx-1 mt-4 flex gap-2 overflow-x-auto px-1 lg:mx-0 lg:mt-5 lg:block lg:overflow-y-auto lg:flex-1 lg:px-0"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2, duration: 0.5 }}
+            >
                 {visibleItems.map((item) => renderMenuItem(item))}
-            </nav>
+            </motion.nav>
 
             {/* Footer Note */}
-            <div className="mt-4 hidden rounded-lg border border-emerald-100 dark:border-emerald-600/30 bg-emerald-50/50 dark:bg-emerald-950/40 p-4 lg:block lg:flex-shrink-0 w-full overflow-hidden">
+            <motion.div
+                className="mt-4 hidden rounded-lg border border-emerald-100 dark:border-emerald-600/30 bg-emerald-50/50 dark:bg-emerald-950/40 p-4 lg:block lg:flex-shrink-0 w-full overflow-hidden"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4, type: 'spring', stiffness: 100, damping: 20 }}
+            >
                 <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 truncate">Note</p>
                 <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400 line-clamp-3 break-words">
                     Visual dashboard yang clean dan modern dengan fokus pada usability.
                 </p>
-            </div>
+            </motion.div>
         </aside>
     );
 }

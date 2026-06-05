@@ -9,5 +9,8 @@ export const groupService = {
   async save(payload: UpsertWhatsAppGroupRequest): Promise<WhatsAppGroup> {
     const response = await api.post<WhatsAppGroup>('/groups', payload);
     return response.data;
+  },
+  async remove(groupJid: string): Promise<void> {
+    await api.delete(`/groups/${encodeURIComponent(groupJid)}`);
   }
 };

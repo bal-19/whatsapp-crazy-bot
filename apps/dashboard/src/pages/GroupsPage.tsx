@@ -1,7 +1,25 @@
-import { Loader2, Save, Search, UsersRound } from 'lucide-react';
+import { Loader2, Save, Search, Trash2, UsersRound } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { WhatsAppGroup } from '@whatsapp-bot/shared';
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label } from '@/components/ui';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+    Button,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+    Input,
+    Label
+} from '@/components/ui';
 import { groupService } from '@/lib/services/groupService';
 import { formatDate } from '@/lib/utils';
 import { useUIStore } from '@/stores/uiStore';
@@ -22,7 +40,14 @@ export function GroupsPage() {
     const [query, setQuery] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const addToast = useUIStore((state) => state.addToast);
+
+    const selectedGroup = useMemo(
+        () => groups.find((group) => group.group_jid === form.group_jid.trim()) ?? null,
+        [groups, form.group_jid]
+    );
 
     const filteredGroups = useMemo(
         () =>
@@ -72,6 +97,21 @@ export function GroupsPage() {
             addToast({ type: 'success', message: 'Nama grup berhasil disimpan.' });
         } finally {
             setIsSaving(false);
+        }
+    }
+
+    async function handleDelete() {
+        if (!selectedGroup) return;
+
+        setIsDeleting(true);
+        try {
+            await groupService.remove(selectedGroup.group_jid);
+            setGroups((current) => current.filter((group) => group.group_jid !== selectedGroup.group_jid));
+            setForm(EMPTY_FORM);
+            setIsDeleteDialogOpen(false);
+            addToast({ type: 'success', message: 'Metadata grup berhasil dihapus.' });
+        } finally {
+            setIsDeleting(false);
         }
     }
 
@@ -189,6 +229,36 @@ export function GroupsPage() {
                             <Button type="button" variant="outline" onClick={() => setForm(EMPTY_FORM)}>
                                 Reset Form
                             </Button>
+                            {selectedGroup ? (
+                                <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                                    <AlertDialogTrigger asChild>
+                                        <Button type="button" variant="destructive" disabled={isDeleting}>
+                                            <Trash2 className="h-4 w-4" />
+                                            {isDeleting ? 'Menghapus...' : 'Hapus Grup'}
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Hapus metadata grup ini?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Nama grup untuk `{selectedGroup.group_jid}` akan dihapus dari dashboard. History percakapan tetap ada, tapi subtitle akan fallback ke nomor/JID grup.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel disabled={isDeleting}>Batal</AlertDialogCancel>
+                                            <AlertDialogAction
+                                                onClick={(event) => {
+                                                    event.preventDefault();
+                                                    void handleDelete();
+                                                }}
+                                                disabled={isDeleting}
+                                            >
+                                                {isDeleting ? 'Menghapus...' : 'Ya, hapus'}
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            ) : null}
                         </div>
                     </CardContent>
                 </Card>

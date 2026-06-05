@@ -65,7 +65,7 @@ export function ConfigPage() {
             setIsPurgeDialogOpen(false);
             toast({
                 title: 'Data operasional dibersihkan',
-                description: `${result.contactsDeleted} contact, ${result.messagesDeleted} pesan, dan ${result.memoriesDeleted} memory dihapus.`
+                description: `${result.contactsDeleted} contact, ${result.groupsDeleted} grup, ${result.messagesDeleted} pesan, dan ${result.memoriesDeleted} memory dihapus.`
             });
         } finally {
             setIsPurgingData(false);
@@ -123,7 +123,7 @@ export function ConfigPage() {
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <p className="max-w-2xl text-sm leading-relaxed text-rose-900/80 dark:text-rose-100/80">
-                        Aksi ini akan membersihkan contact, messages, dan personal memory. Cocok untuk reset data operasional tanpa merusak akses admin, konfigurasi bot, log sistem, atau pairing WhatsApp.
+                        Aksi ini akan membersihkan contact, metadata grup, messages, dan personal memory. Cocok untuk reset data operasional tanpa merusak akses admin, konfigurasi bot, log sistem, atau pairing WhatsApp.
                     </p>
                     <AlertDialog open={isPurgeDialogOpen} onOpenChange={setIsPurgeDialogOpen}>
                         <AlertDialogTrigger asChild>
@@ -136,7 +136,7 @@ export function ConfigPage() {
                             <AlertDialogHeader>
                                 <AlertDialogTitle>Hapus data operasional bot?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                    Contact, messages, dan personal memory akan dihapus permanen. Tabel
+                                    Contact, metadata grup, messages, dan personal memory akan dihapus permanen. Tabel
                                     `admin_users`, `bot_settings`, `system_logs`, dan `whatsapp_auth_state`
                                     tetap dipertahankan.
                                 </AlertDialogDescription>

@@ -112,6 +112,30 @@ describe('appDb group metadata', () => {
 
     assert.equal(preserved.display_name, 'Nama Manual');
   });
+
+  it('deletes stored group metadata without removing the conversation scope', async () => {
+    const groupJid = `120363-delete-${Date.now()}@g.us`;
+    const participantJid = `62899${Date.now()}@s.whatsapp.net`;
+    const contactId = `${groupJid}::${participantJid}`;
+
+    await appDb.upsertGroup(groupJid, 'Grup Hapus');
+    await appDb.insertMessage({
+      id: `group-delete-msg-${Date.now()}`,
+      contact_id: contactId,
+      direction: 'inbound',
+      body: 'halo grup hapus'
+    });
+
+    await appDb.deleteGroup(groupJid);
+
+    const groups = await appDb.listGroups();
+    assert.equal(groups.some((item) => item.group_jid === groupJid), false);
+
+    const summaries = await appDb.listConversations();
+    const summary = summaries.data.find((item) => item.contact_id === contactId);
+    assert.ok(summary);
+    assert.equal(summary.group_name, null);
+  });
 });
 
 describe('appDb personal memories', () => {
@@ -136,8 +160,10 @@ describe('appDb personal memories', () => {
 
   it('purges operational data without touching preserved domains', async () => {
     const contactId = `purge-${Date.now()}@s.whatsapp.net`;
+    const groupJid = `120363-purge-${Date.now()}@g.us`;
 
     await appDb.upsertContact(contactId, 'Purge Test');
+    await appDb.upsertGroup(groupJid, 'Purge Group');
     await appDb.insertMessage({
       id: `msg-${Date.now()}`,
       contact_id: contactId,
@@ -152,8 +178,10 @@ describe('appDb personal memories', () => {
 
     const summary = await appDb.purgeOperationalData();
     assert.equal(summary.contactsDeleted >= 1, true);
+    assert.equal(summary.groupsDeleted >= 1, true);
     assert.equal(summary.messagesDeleted >= 1, true);
     assert.equal(summary.memoriesDeleted >= 1, true);
     assert.deepEqual(await appDb.listContacts(), []);
+    assert.deepEqual(await appDb.listGroups(), []);
   });
 });

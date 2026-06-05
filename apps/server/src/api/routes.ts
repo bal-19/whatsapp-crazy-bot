@@ -166,6 +166,14 @@ export function createApiRouter(): Router {
         }),
     );
 
+    router.delete(
+        "/groups/:groupJid",
+        asyncHandler(async (req, res) => {
+            await appDb.deleteGroup(req.params.groupJid);
+            res.status(204).send();
+        }),
+    );
+
     router.get(
         "/conversations",
         asyncHandler(async (req, res) => {

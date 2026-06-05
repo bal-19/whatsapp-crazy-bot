@@ -178,6 +178,7 @@ interface DatabaseAdapter {
     upsertContact(id: string, name?: string | null): Promise<void>;
     listGroups(): Promise<WhatsAppGroup[]>;
     upsertGroup(groupJid: string, name?: string | null): Promise<WhatsAppGroup>;
+    deleteGroup(groupJid: string): Promise<void>;
     insertMessage(input: {
         id: string;
         contact_id: string;
@@ -204,6 +205,7 @@ interface DatabaseAdapter {
     clearPersonalMemories(contactId: string): Promise<void>;
     purgeOperationalData(): Promise<{
         contactsDeleted: number;
+        groupsDeleted: number;
         messagesDeleted: number;
         memoriesDeleted: number;
     }>;
@@ -264,6 +266,10 @@ class AppDatabase {
         return this.adapter.upsertGroup(groupJid, name);
     }
 
+    deleteGroup(groupJid: string): Promise<void> {
+        return this.adapter.deleteGroup(groupJid);
+    }
+
     insertMessage(
         input: Parameters<DatabaseAdapter["insertMessage"]>[0],
     ): Promise<Message> {
@@ -306,6 +312,7 @@ class AppDatabase {
 
     purgeOperationalData(): Promise<{
         contactsDeleted: number;
+        groupsDeleted: number;
         messagesDeleted: number;
         memoriesDeleted: number;
     }> {
@@ -531,6 +538,18 @@ class InMemoryDatabase implements DatabaseAdapter {
         return mapWhatsAppGroupRow(row);
     }
 
+    async deleteGroup(groupJid: string): Promise<void> {
+        this.groups.delete(groupJid);
+        this.conversationScopes = new Map(
+            [...this.conversationScopes.entries()].map(([scopeKey, scope]) => [
+                scopeKey,
+                scope.group_jid === groupJid
+                    ? { ...scope, group_jid: null, updated_at: new Date().toISOString() }
+                    : scope,
+            ]),
+        );
+    }
+
     async insertMessage(input: {
         id: string;
         contact_id: string;
@@ -724,10 +743,12 @@ class InMemoryDatabase implements DatabaseAdapter {
 
     async purgeOperationalData(): Promise<{
         contactsDeleted: number;
+        groupsDeleted: number;
         messagesDeleted: number;
         memoriesDeleted: number;
     }> {
         const contactsDeleted = this.contacts.size;
+        const groupsDeleted = this.groups.size;
         const messagesDeleted = this.messages.length;
         const memoriesDeleted = [...this.personalMemories.values()].reduce(
             (total, rows) => total + rows.length,
@@ -742,6 +763,7 @@ class InMemoryDatabase implements DatabaseAdapter {
 
         return {
             contactsDeleted,
+            groupsDeleted,
             messagesDeleted,
             memoriesDeleted,
         };
@@ -999,6 +1021,19 @@ class SupabaseDatabase implements DatabaseAdapter {
         return mapWhatsAppGroupRow(await this.ensureGroup(groupJid, name));
     }
 
+    async deleteGroup(groupJid: string): Promise<void> {
+        await this.ready;
+        const { error } = await supabaseAdmin!
+            .from("whatsapp_groups")
+            .delete()
+            .eq("group_jid", groupJid);
+
+        assertSupabaseSuccess(
+            error,
+            "Gagal menghapus metadata group WhatsApp dari Supabase.",
+        );
+    }
+
     async insertMessage(input: {
         id: string;
         contact_id: string;
@@ -1204,15 +1239,19 @@ class SupabaseDatabase implements DatabaseAdapter {
 
     async purgeOperationalData(): Promise<{
         contactsDeleted: number;
+        groupsDeleted: number;
         messagesDeleted: number;
         memoriesDeleted: number;
     }> {
         await this.ready;
 
-        const [contactsCount, messagesCount, memoriesCount] = await Promise.all(
+        const [contactsCount, groupsCount, messagesCount, memoriesCount] = await Promise.all(
             [
                 supabaseAdmin!
                     .from("contacts")
+                    .select("id", { count: "exact", head: true }),
+                supabaseAdmin!
+                    .from("whatsapp_groups")
                     .select("id", { count: "exact", head: true }),
                 supabaseAdmin!
                     .from("messages")
@@ -1228,12 +1267,25 @@ class SupabaseDatabase implements DatabaseAdapter {
             "Gagal menghitung contact sebelum purge.",
         );
         assertSupabaseSuccess(
+            groupsCount.error,
+            "Gagal menghitung whatsapp_groups sebelum purge.",
+        );
+        assertSupabaseSuccess(
             messagesCount.error,
             "Gagal menghitung messages sebelum purge.",
         );
         assertSupabaseSuccess(
             memoriesCount.error,
             "Gagal menghitung personal memory sebelum purge.",
+        );
+
+        const { error: groupsDeleteError } = await supabaseAdmin!
+            .from("whatsapp_groups")
+            .delete()
+            .not("id", "is", null);
+        assertSupabaseSuccess(
+            groupsDeleteError,
+            "Gagal menghapus metadata grup dari Supabase.",
         );
 
         const { error } = await supabaseAdmin!
@@ -1247,6 +1299,7 @@ class SupabaseDatabase implements DatabaseAdapter {
 
         return {
             contactsDeleted: contactsCount.count ?? 0,
+            groupsDeleted: groupsCount.count ?? 0,
             messagesDeleted: messagesCount.count ?? 0,
             memoriesDeleted: memoriesCount.count ?? 0,
         };

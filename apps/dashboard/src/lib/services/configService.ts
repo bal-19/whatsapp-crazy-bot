@@ -3,6 +3,7 @@ import { api } from '../api';
 
 export interface PurgeOperationalDataResponse {
   contactsDeleted: number;
+  groupsDeleted: number;
   messagesDeleted: number;
   memoriesDeleted: number;
   preserved_tables: string[];

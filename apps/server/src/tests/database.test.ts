@@ -38,6 +38,41 @@ describe('appDb.upsertContact', () => {
 });
 
 describe('appDb group metadata', () => {
+  it('keeps contacts unique per participant even across different group scopes', async () => {
+    const participantJid = `62888${Date.now()}@s.whatsapp.net`;
+    const firstGroupContactId = `120363${Date.now()}@g.us::${participantJid}`;
+    const secondGroupContactId = `120364${Date.now()}@g.us::${participantJid}`;
+
+    await appDb.upsertContact(participantJid, 'Iqbal');
+    await appDb.insertMessage({
+      id: `group-msg-a-${Date.now()}`,
+      contact_id: firstGroupContactId,
+      direction: 'inbound',
+      body: 'Ikmal halo dari grup A'
+    });
+    await appDb.insertMessage({
+      id: `group-msg-b-${Date.now()}`,
+      contact_id: secondGroupContactId,
+      direction: 'inbound',
+      body: 'Ikmal halo dari grup B'
+    });
+
+    const contacts = await appDb.listContacts();
+    const participantContacts = contacts.filter((contact) => contact.id === participantJid);
+
+    assert.equal(participantContacts.length, 1);
+
+    const conversations = await appDb.listConversations();
+    assert.equal(
+      conversations.data.some((item) => item.contact_id === firstGroupContactId),
+      true
+    );
+    assert.equal(
+      conversations.data.some((item) => item.contact_id === secondGroupContactId),
+      true
+    );
+  });
+
   it('adds group_name to scoped group conversation summaries', async () => {
     const groupJid = `120363${Date.now()}@g.us`;
     const participantJid = `62812${Date.now()}@s.whatsapp.net`;

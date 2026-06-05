@@ -2,6 +2,7 @@ import type { proto } from "@whiskeysockets/baileys";
 
 export interface ConversationScope {
     contactId: string;
+    contactJid: string;
     deliveryJid: string;
     groupJid: string | null;
     participantJid: string | null;
@@ -19,6 +20,7 @@ export function resolveConversationScope(
     if (!isGroup) {
         return {
             contactId: remoteJid,
+            contactJid: remoteJid,
             deliveryJid: remoteJid,
             groupJid: null,
             participantJid: null,
@@ -31,6 +33,7 @@ export function resolveConversationScope(
     if (!participantJid) {
         return {
             contactId: remoteJid,
+            contactJid: remoteJid,
             deliveryJid: remoteJid,
             groupJid: remoteJid,
             participantJid: null,
@@ -41,6 +44,7 @@ export function resolveConversationScope(
 
     return {
         contactId: `${remoteJid}::${participantJid}`,
+        contactJid: participantJid,
         deliveryJid: remoteJid,
         groupJid: remoteJid,
         participantJid,
@@ -54,12 +58,23 @@ export function toConversationScopeLogMeta(
 ): Record<string, unknown> {
     return {
         contactId: scope.contactId,
+        contactJid: scope.contactJid,
         deliveryJid: scope.deliveryJid,
         groupJid: scope.groupJid,
         participantJid: scope.participantJid,
         isGroup: scope.isGroup,
         usedGroupFallback: scope.usedGroupFallback,
     };
+}
+
+export function deriveContactJidFromScopeKey(scopeKey: string): string {
+    const [groupJid, participantJid] = scopeKey.split("::");
+    return participantJid ? participantJid : groupJid;
+}
+
+export function deriveGroupJidFromScopeKey(scopeKey: string): string | null {
+    const [groupJid, participantJid] = scopeKey.split("::");
+    return participantJid ? groupJid : null;
 }
 
 function normalizeParticipantJid(value?: string | null): string | null {

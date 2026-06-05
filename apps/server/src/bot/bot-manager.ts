@@ -247,7 +247,7 @@ export class BotManager {
         }
 
         const contactName = message.pushName ?? null;
-        await appDb.upsertContact(scope.contactId, contactName);
+        await appDb.upsertContact(scope.contactJid, contactName);
         const inbound = await appDb.insertMessage({
             id: messageId,
             contact_id: scope.contactId,
@@ -429,7 +429,7 @@ export class BotManager {
             replyContent,
             quotedMessage ? { quoted: quotedMessage } : undefined,
         );
-        await appDb.upsertContact(scope.contactId);
+        await appDb.upsertContact(scope.contactJid);
         const outbound = await appDb.insertMessage({
             id: `bot-${Date.now()}-${crypto.randomUUID()}`,
             contact_id: scope.contactId,

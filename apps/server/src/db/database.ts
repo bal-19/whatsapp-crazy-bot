@@ -19,6 +19,10 @@ import type {
 import { env } from "../config/env.js";
 import { supabaseAdmin } from "../lib/supabase.js";
 import type { PersonalMemory } from "../ai/personal-memory.js";
+import {
+    deriveContactJidFromScopeKey,
+    deriveGroupJidFromScopeKey,
+} from "../bot/conversation-scope.js";
 
 const DEFAULT_PERSONA = `Nama kamu adalah Ikmal, asisten AI yang helpful dengan vibe Gen Z.
 
@@ -73,6 +77,17 @@ interface WhatsAppGroupRow {
     updated_at: string;
 }
 
+interface ConversationScopeRow {
+    id: string;
+    scope_key: string;
+    contact_id?: string | null;
+    contact_jid?: string | null;
+    group_jid: string | null;
+    created_at: string;
+    updated_at: string;
+    last_seen_at: string | null;
+}
+
 interface MessageRow {
     id: string;
     whatsapp_message_id: string;
@@ -119,6 +134,7 @@ interface PersonalMemoryRow {
 
 interface ConversationSummaryRow {
     contact_id: string;
+    contact_jid?: string | null;
     contact_name: string | null;
     group_name: string | null;
     last_message: string;
@@ -324,6 +340,7 @@ class AppDatabase {
 class InMemoryDatabase implements DatabaseAdapter {
     private config: BotConfig = { ...DEFAULT_CONFIG };
     private contacts = new Map<string, ContactRow>();
+    private conversationScopes = new Map<string, ConversationScopeRow>();
     private groups = new Map<string, WhatsAppGroupRow>();
     private messages: MessageRow[] = [];
     private personalMemories = new Map<string, PersonalMemoryRow[]>();
@@ -353,19 +370,20 @@ class InMemoryDatabase implements DatabaseAdapter {
     }
 
     async getContact(contactId: string): Promise<Contact | null> {
-        const row = this.contacts.get(contactId);
+        const row = this.contacts.get(normalizeContactJid(contactId));
         return row ? mapContactRow(row) : null;
     }
 
     async createContact(input: CreateContactRequest): Promise<Contact> {
+        const contactJid = normalizeContactJid(input.id);
         const now = new Date().toISOString();
-        if (this.contacts.has(input.id)) {
+        if (this.contacts.has(contactJid)) {
             throw new Error("Contact dengan WhatsApp JID tersebut sudah ada.");
         }
 
         const row: ContactRow = {
             id: crypto.randomUUID(),
-            whatsapp_jid: input.id,
+            whatsapp_jid: contactJid,
             display_name: input.name ?? null,
             is_blocked: input.is_blocked ?? false,
             created_at: now,
@@ -373,7 +391,7 @@ class InMemoryDatabase implements DatabaseAdapter {
             last_seen_at: input.last_seen ?? null,
         };
 
-        this.contacts.set(input.id, row);
+        this.contacts.set(contactJid, row);
         return mapContactRow(row);
     }
 
@@ -381,11 +399,14 @@ class InMemoryDatabase implements DatabaseAdapter {
         contactId: string,
         patch: UpdateContactRequest,
     ): Promise<Contact | null> {
-        const current = this.contacts.get(contactId);
+        const normalizedContactId = normalizeContactJid(contactId);
+        const current = this.contacts.get(normalizedContactId);
         if (!current) return null;
 
-        const nextId = patch.id?.trim() || current.whatsapp_jid;
-        if (nextId !== contactId && this.contacts.has(nextId)) {
+        const nextId = normalizeContactJid(
+            patch.id?.trim() || current.whatsapp_jid,
+        );
+        if (nextId !== normalizedContactId && this.contacts.has(nextId)) {
             throw new Error("Contact dengan WhatsApp JID tersebut sudah ada.");
         }
 
@@ -402,12 +423,23 @@ class InMemoryDatabase implements DatabaseAdapter {
             updated_at: new Date().toISOString(),
         };
 
-        if (nextId !== contactId) {
-            this.contacts.delete(contactId);
-            this.messages = this.messages.map((message) =>
-                message.contact_id === contactId
-                    ? { ...message, contact_id: nextId }
-                    : message,
+        if (nextId !== normalizedContactId) {
+            this.contacts.delete(normalizedContactId);
+            this.conversationScopes = new Map(
+                [...this.conversationScopes.entries()].map(([scopeKey, scope]) => {
+                    if (scope.contact_jid !== normalizedContactId) {
+                        return [scopeKey, scope];
+                    }
+
+                    return [
+                        scopeKey,
+                        {
+                            ...scope,
+                            contact_jid: nextId,
+                            updated_at: updated.updated_at,
+                        },
+                    ];
+                }),
             );
         }
 
@@ -416,24 +448,60 @@ class InMemoryDatabase implements DatabaseAdapter {
     }
 
     async deleteContact(contactId: string): Promise<void> {
-        this.contacts.delete(contactId);
-        this.messages = this.messages.filter(
-            (message) => message.contact_id !== contactId,
+        const normalizedContactId = normalizeContactJid(contactId);
+        this.contacts.delete(normalizedContactId);
+        const scopeKeys = [...this.conversationScopes.values()]
+            .filter((scope) => scope.contact_jid === normalizedContactId)
+            .map((scope) => scope.scope_key);
+        this.conversationScopes = new Map(
+            [...this.conversationScopes.entries()].filter(
+                ([, scope]) => scope.contact_jid !== normalizedContactId,
+            ),
         );
+        this.messages = this.messages.filter(
+            (message) => !scopeKeys.includes(message.contact_id),
+        );
+        for (const scopeKey of scopeKeys) {
+            this.personalMemories.delete(scopeKey);
+        }
     }
 
     async upsertContact(id: string, name?: string | null): Promise<void> {
-        const existing = this.contacts.get(id);
+        const normalizedContactId = normalizeContactJid(id);
+        const existing = this.contacts.get(normalizedContactId);
         const now = new Date().toISOString();
-        this.contacts.set(id, {
-            id,
-            whatsapp_jid: id,
+        this.contacts.set(normalizedContactId, {
+            id: existing?.id ?? crypto.randomUUID(),
+            whatsapp_jid: normalizedContactId,
             display_name: resolveDisplayName(existing?.display_name, name),
             is_blocked: existing?.is_blocked ?? false,
             created_at: existing?.created_at ?? now,
             updated_at: now,
             last_seen_at: now,
         });
+    }
+
+    private ensureConversationScope(
+        scopeKey: string,
+        contactName?: string | null,
+    ): ConversationScopeRow {
+        const now = new Date().toISOString();
+        const contactJid = deriveContactJidFromScopeKey(scopeKey);
+        const groupJid = deriveGroupJidFromScopeKey(scopeKey);
+        void this.upsertContact(contactJid, contactName);
+
+        const existing = this.conversationScopes.get(scopeKey);
+        const row: ConversationScopeRow = {
+            id: existing?.id ?? crypto.randomUUID(),
+            scope_key: scopeKey,
+            contact_jid: contactJid,
+            group_jid: groupJid,
+            created_at: existing?.created_at ?? now,
+            updated_at: now,
+            last_seen_at: now,
+        };
+        this.conversationScopes.set(scopeKey, row);
+        return row;
     }
 
     async listGroups(): Promise<WhatsAppGroup[]> {
@@ -474,7 +542,7 @@ class InMemoryDatabase implements DatabaseAdapter {
         latency_ms?: number | null;
         raw_payload?: Record<string, unknown> | null;
     }): Promise<Message> {
-        await this.upsertContact(input.contact_id);
+        this.ensureConversationScope(input.contact_id);
 
         const now = new Date().toISOString();
         const row: MessageRow = {
@@ -509,10 +577,15 @@ class InMemoryDatabase implements DatabaseAdapter {
     ): Promise<PaginatedResponse<ConversationSummary>> {
         const summaries = [...this.contacts.values()]
             .map((contact) => {
+                const scopes = [...this.conversationScopes.values()].filter(
+                    (scope) => scope.contact_jid === contact.whatsapp_jid,
+                );
+                if (scopes.length === 0) return null;
+
+                return scopes.map((scope) => {
                 const contactMessages = this.messages
                     .filter(
-                        (message) =>
-                            message.contact_id === contact.whatsapp_jid,
+                        (message) => message.contact_id === scope.scope_key,
                     )
                     .sort(
                         (a, b) =>
@@ -539,15 +612,17 @@ class InMemoryDatabase implements DatabaseAdapter {
                           );
 
                 return {
-                    contact_id: contact.whatsapp_jid,
+                    contact_id: scope.scope_key,
                     contact_name: contact.display_name,
-                    group_name: this.resolveGroupName(contact.whatsapp_jid),
+                    group_name: this.resolveGroupName(scope.scope_key),
                     last_message: contactMessages[0]!.body,
                     last_message_at: contactMessages[0]!.created_at,
                     message_count: contactMessages.length,
                     avg_response_time_ms: avgResponseTimeMs,
                 } satisfies ConversationSummary;
+                });
             })
+            .flat()
             .filter((value): value is ConversationSummary => value !== null)
             .sort(
                 (a, b) =>
@@ -569,7 +644,10 @@ class InMemoryDatabase implements DatabaseAdapter {
     async getConversation(
         contactId: string,
     ): Promise<ConversationDetail | null> {
-        const contact = this.contacts.get(contactId);
+        const scope = this.conversationScopes.get(contactId);
+        const contactJid = scope?.contact_jid;
+        if (!scope || !contactJid) return null;
+        const contact = this.contacts.get(contactJid);
         if (!contact) return null;
 
         const messages = this.messages
@@ -579,7 +657,7 @@ class InMemoryDatabase implements DatabaseAdapter {
 
         return {
             contact: {
-                id: contact.whatsapp_jid,
+                id: scope.scope_key,
                 name: contact.display_name,
             },
             messages,
@@ -657,6 +735,7 @@ class InMemoryDatabase implements DatabaseAdapter {
         );
 
         this.contacts.clear();
+        this.conversationScopes.clear();
         this.groups.clear();
         this.messages = [];
         this.personalMemories.clear();
@@ -710,7 +789,11 @@ class InMemoryDatabase implements DatabaseAdapter {
             messages_today: messagesToday.length,
             messages_this_week: messagesThisWeek.length,
             active_contacts_today: new Set(
-                messagesToday.map((message) => message.contact_id),
+                messagesToday.map(
+                    (message) =>
+                        this.conversationScopes.get(message.contact_id)
+                            ?.contact_jid ?? message.contact_id,
+                ),
             ).size,
             avg_response_time_ms:
                 outboundWithLatency.length === 0
@@ -753,9 +836,8 @@ class InMemoryDatabase implements DatabaseAdapter {
     async close(): Promise<void> {}
 
     private resolveGroupName(contactId: string): string | null {
-        const [groupJid, participantJid] = contactId.split("::");
-        if (!participantJid) return null;
-        return this.groups.get(groupJid)?.display_name ?? null;
+        const groupJid = deriveGroupJidFromScopeKey(contactId);
+        return groupJid ? this.groups.get(groupJid)?.display_name ?? null : null;
     }
 }
 
@@ -815,15 +897,16 @@ class SupabaseDatabase implements DatabaseAdapter {
 
     async getContact(contactId: string): Promise<Contact | null> {
         await this.ready;
-        const row = await this.findContactByJid(contactId);
+        const row = await this.findContactByJid(normalizeContactJid(contactId));
         return row ? mapContactRow(row) : null;
     }
 
     async createContact(input: CreateContactRequest): Promise<Contact> {
         await this.ready;
+        const contactJid = normalizeContactJid(input.id);
 
         const payload = {
-            whatsapp_jid: input.id,
+            whatsapp_jid: contactJid,
             display_name: input.name ?? null,
             is_blocked: input.is_blocked ?? false,
             last_seen_at: input.last_seen ?? null,
@@ -844,11 +927,15 @@ class SupabaseDatabase implements DatabaseAdapter {
         patch: UpdateContactRequest,
     ): Promise<Contact | null> {
         await this.ready;
-        const current = await this.findContactByJid(contactId);
+        const current = await this.findContactByJid(
+            normalizeContactJid(contactId),
+        );
         if (!current) return null;
 
         const payload = {
-            whatsapp_jid: patch.id?.trim() || current.whatsapp_jid,
+            whatsapp_jid: normalizeContactJid(
+                patch.id?.trim() || current.whatsapp_jid,
+            ),
             display_name:
                 patch.name !== undefined ? patch.name : current.display_name,
             is_blocked: patch.is_blocked ?? current.is_blocked,
@@ -872,7 +959,9 @@ class SupabaseDatabase implements DatabaseAdapter {
 
     async deleteContact(contactId: string): Promise<void> {
         await this.ready;
-        const current = await this.findContactByJid(contactId);
+        const current = await this.findContactByJid(
+            normalizeContactJid(contactId),
+        );
         if (!current) return;
 
         const { error } = await supabaseAdmin!
@@ -885,7 +974,7 @@ class SupabaseDatabase implements DatabaseAdapter {
 
     async upsertContact(id: string, name?: string | null): Promise<void> {
         await this.ready;
-        await this.ensureContact(id, name);
+        await this.ensureContactIdentity(normalizeContactJid(id), name);
     }
 
     async listGroups(): Promise<WhatsAppGroup[]> {
@@ -922,11 +1011,11 @@ class SupabaseDatabase implements DatabaseAdapter {
         raw_payload?: Record<string, unknown> | null;
     }): Promise<Message> {
         await this.ready;
-        const contact = await this.ensureContact(input.contact_id);
+        const scope = await this.ensureConversationScope(input.contact_id);
 
         const payload = {
             whatsapp_message_id: input.id,
-            contact_id: contact.id,
+            contact_id: scope.id,
             direction: input.direction,
             body: input.body,
             status: input.status ?? "sent",
@@ -943,7 +1032,7 @@ class SupabaseDatabase implements DatabaseAdapter {
             .single();
 
         assertSupabaseSuccess(error, "Gagal menyimpan message ke Supabase.");
-        return mapMessageRow(data as MessageRow, contact.whatsapp_jid);
+        return mapMessageRow(data as MessageRow, scope.scope_key);
     }
 
     async listConversations(
@@ -990,13 +1079,15 @@ class SupabaseDatabase implements DatabaseAdapter {
         contactId: string,
     ): Promise<ConversationDetail | null> {
         await this.ready;
-        const contact = await this.findContactByJid(contactId);
+        const scope = await this.findConversationScopeByKey(contactId);
+        if (!scope) return null;
+        const contact = await this.findContactById(scope.contact_id ?? "");
         if (!contact) return null;
 
         const { data, error } = await supabaseAdmin!
             .from("messages")
             .select("*")
-            .eq("contact_id", contact.id)
+            .eq("contact_id", scope.id)
             .order("created_at", { ascending: true });
 
         assertSupabaseSuccess(
@@ -1006,24 +1097,24 @@ class SupabaseDatabase implements DatabaseAdapter {
 
         return {
             contact: {
-                id: contact.whatsapp_jid,
+                id: scope.scope_key,
                 name: contact.display_name,
             },
             messages: ((data ?? []) as MessageRow[]).map((row) =>
-                mapMessageRow(row, contact.whatsapp_jid),
+                mapMessageRow(row, scope.scope_key),
             ),
         };
     }
 
     async clearConversation(contactId: string): Promise<void> {
         await this.ready;
-        const contact = await this.findContactByJid(contactId);
-        if (!contact) return;
+        const scope = await this.findConversationScopeByKey(contactId);
+        if (!scope) return;
 
         const { error } = await supabaseAdmin!
             .from("messages")
             .delete()
-            .eq("contact_id", contact.id);
+            .eq("contact_id", scope.id);
         assertSupabaseSuccess(
             error,
             "Gagal menghapus history percakapan dari Supabase.",
@@ -1032,13 +1123,13 @@ class SupabaseDatabase implements DatabaseAdapter {
 
     async getRecentHistory(contactId: string, limit = 20): Promise<Message[]> {
         await this.ready;
-        const contact = await this.findContactByJid(contactId);
-        if (!contact) return [];
+        const scope = await this.findConversationScopeByKey(contactId);
+        if (!scope) return [];
 
         const { data, error } = await supabaseAdmin!
             .from("messages")
             .select("*")
-            .eq("contact_id", contact.id)
+            .eq("contact_id", scope.id)
             .order("created_at", { ascending: false })
             .limit(limit);
 
@@ -1049,18 +1140,18 @@ class SupabaseDatabase implements DatabaseAdapter {
 
         return ((data ?? []) as MessageRow[])
             .reverse()
-            .map((row) => mapMessageRow(row, contact.whatsapp_jid));
+            .map((row) => mapMessageRow(row, scope.scope_key));
     }
 
     async listPersonalMemories(contactId: string): Promise<PersonalMemory[]> {
         await this.ready;
-        const contact = await this.findContactByJid(contactId);
-        if (!contact) return [];
+        const scope = await this.findConversationScopeByKey(contactId);
+        if (!scope) return [];
 
         const { data, error } = await supabaseAdmin!
             .from("contact_memories")
             .select("*")
-            .eq("contact_id", contact.id)
+            .eq("contact_id", scope.id)
             .order("updated_at", { ascending: true });
 
         assertSupabaseSuccess(
@@ -1075,10 +1166,10 @@ class SupabaseDatabase implements DatabaseAdapter {
         memory: PersonalMemory,
     ): Promise<void> {
         await this.ready;
-        const contact = await this.ensureContact(contactId);
+        const scope = await this.ensureConversationScope(contactId);
 
         const payload = {
-            contact_id: contact.id,
+            contact_id: scope.id,
             memory_key: memory.key,
             memory_value: memory.value,
             confidence: memory.confidence ?? null,
@@ -1097,13 +1188,13 @@ class SupabaseDatabase implements DatabaseAdapter {
 
     async clearPersonalMemories(contactId: string): Promise<void> {
         await this.ready;
-        const contact = await this.findContactByJid(contactId);
-        if (!contact) return;
+        const scope = await this.findConversationScopeByKey(contactId);
+        if (!scope) return;
 
         const { error } = await supabaseAdmin!
             .from("contact_memories")
             .delete()
-            .eq("contact_id", contact.id);
+            .eq("contact_id", scope.id);
 
         assertSupabaseSuccess(
             error,
@@ -1206,10 +1297,10 @@ class SupabaseDatabase implements DatabaseAdapter {
                 .select("id", { count: "exact", head: true })
                 .gte("created_at", weekStart),
             supabaseAdmin!
-                .from("messages")
-                .select("contact_id")
-                .gte("created_at", start.toISOString())
-                .lt("created_at", end.toISOString()),
+                .from("conversation_summaries")
+                .select("contact_jid, last_message_at")
+                .gte("last_message_at", start.toISOString())
+                .lt("last_message_at", end.toISOString()),
             supabaseAdmin!
                 .from("messages")
                 .select("latency_ms")
@@ -1264,7 +1355,7 @@ class SupabaseDatabase implements DatabaseAdapter {
             messages_today: messagesTodayResult.count ?? 0,
             messages_this_week: messagesThisWeekResult.count ?? 0,
             active_contacts_today: new Set(
-                (activeContactsResult.data ?? []).map((row) => row.contact_id),
+                (activeContactsResult.data ?? []).map((row) => row.contact_jid),
             ).size,
             avg_response_time_ms:
                 latencies.length === 0
@@ -1377,7 +1468,18 @@ class SupabaseDatabase implements DatabaseAdapter {
         return (data as ContactRow | null) ?? null;
     }
 
-    private async ensureContact(
+    private async findContactById(id: string): Promise<ContactRow | null> {
+        const { data, error } = await supabaseAdmin!
+            .from("contacts")
+            .select("*")
+            .eq("id", id)
+            .maybeSingle();
+
+        assertSupabaseSuccess(error, "Gagal mencari contact by id di Supabase.");
+        return (data as ContactRow | null) ?? null;
+    }
+
+    private async ensureContactIdentity(
         jid: string,
         name?: string | null,
     ): Promise<ContactRow> {
@@ -1418,6 +1520,61 @@ class SupabaseDatabase implements DatabaseAdapter {
 
         assertSupabaseSuccess(error, "Gagal menyimpan contact ke Supabase.");
         return data as ContactRow;
+    }
+
+    private async findConversationScopeByKey(
+        scopeKey: string,
+    ): Promise<ConversationScopeRow | null> {
+        const { data, error } = await supabaseAdmin!
+            .from("conversation_scopes")
+            .select("*")
+            .eq("scope_key", scopeKey)
+            .maybeSingle();
+
+        assertSupabaseSuccess(
+            error,
+            "Gagal mencari conversation scope di Supabase.",
+        );
+        return ((data as ConversationScopeRow | null) ?? null) ? {
+            ...(data as ConversationScopeRow),
+            contact_jid: undefined,
+        } : null;
+    }
+
+    private async ensureConversationScope(
+        scopeKey: string,
+        contactName?: string | null,
+    ): Promise<ConversationScopeRow> {
+        const now = new Date().toISOString();
+        const contactJid = deriveContactJidFromScopeKey(scopeKey);
+        const groupJid = deriveGroupJidFromScopeKey(scopeKey);
+        const contact = await this.ensureContactIdentity(contactJid, contactName);
+        const existing = await this.findConversationScopeByKey(scopeKey);
+
+        const payload = {
+            scope_key: scopeKey,
+            contact_id: contact.id,
+            group_jid: groupJid,
+            updated_at: now,
+            last_seen_at: now,
+            ...(existing ? {} : { created_at: now }),
+        };
+
+        const { data, error } = await supabaseAdmin!
+            .from("conversation_scopes")
+            .upsert(payload, { onConflict: "scope_key" })
+            .select("*")
+            .single();
+
+        assertSupabaseSuccess(
+            error,
+            "Gagal menyimpan conversation scope ke Supabase.",
+        );
+
+        return {
+            ...(data as ConversationScopeRow),
+            contact_jid: contact.whatsapp_jid,
+        };
     }
 
     private async ensureGroup(
@@ -1518,6 +1675,10 @@ function mapPersonalMemoryRow(row: PersonalMemoryRow): PersonalMemory {
         createdAt: row.created_at,
         updatedAt: row.updated_at,
     };
+}
+
+function normalizeContactJid(value: string): string {
+    return deriveContactJidFromScopeKey(value.trim());
 }
 
 function assertSupabaseSuccess(

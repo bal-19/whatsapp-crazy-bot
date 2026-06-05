@@ -11,6 +11,7 @@ describe("resolveConversationScope", () => {
 
         assert.ok(scope);
         assert.equal(scope.contactId, "628111@s.whatsapp.net");
+        assert.equal(scope.contactJid, "628111@s.whatsapp.net");
         assert.equal(scope.deliveryJid, "628111@s.whatsapp.net");
         assert.equal(scope.isGroup, false);
         assert.equal(scope.usedGroupFallback, false);
@@ -29,6 +30,7 @@ describe("resolveConversationScope", () => {
             scope.contactId,
             "120363@g.us::628222@s.whatsapp.net",
         );
+        assert.equal(scope.contactJid, "628222@s.whatsapp.net");
         assert.equal(scope.deliveryJid, "120363@g.us");
         assert.equal(scope.groupJid, "120363@g.us");
         assert.equal(scope.participantJid, "628222@s.whatsapp.net");
@@ -43,6 +45,7 @@ describe("resolveConversationScope", () => {
 
         assert.ok(scope);
         assert.equal(scope.contactId, "120363@g.us");
+        assert.equal(scope.contactJid, "120363@g.us");
         assert.equal(scope.deliveryJid, "120363@g.us");
         assert.equal(scope.groupJid, "120363@g.us");
         assert.equal(scope.participantJid, null);

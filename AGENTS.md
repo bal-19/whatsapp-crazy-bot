@@ -181,6 +181,13 @@ Perilaku:
 
 Source of truth percakapan tetap database Supabase, sementara memory dipakai untuk performa dan konteks cepat.
 
+Catatan struktur data yang aktif sekarang:
+
+- `contacts` menyimpan identitas WhatsApp yang unik per nomor/JID asli
+- `conversation_scopes` menyimpan scope percakapan runtime seperti `groupJid::participantJid`
+- `messages` dan `contact_memories` terhubung ke `conversation_scopes`, bukan langsung ke `contacts`
+- untuk chat personal, `scope_key` sama dengan JID user; untuk grup per-member, `scope_key` berbeda per grup
+
 Catatan grup:
 
 - key memory memakai conversation scope
@@ -405,6 +412,7 @@ Jika ada perubahan perilaku agent ke depan, update minimal bagian berikut secara
 - `prompt-builder.ts`
 - `error-messages.ts`
 - `intent-detector.ts`
+- `conversation-scope.ts`
 - `database.ts` default config
 - dokumen ini
 

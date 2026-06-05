@@ -1,15 +1,19 @@
 import { LogOut, RefreshCw, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useBotStore } from '@/stores/botStore';
+import { useAuthStore } from '@/stores/authStore';
 import { StatusBadge, Button, ThemeToggle } from '@/components/ui';
 import { formatDuration } from '@/lib/utils';
 
 export function Topbar() {
     const navigate = useNavigate();
     const { status, uptimeSeconds, restartBot } = useBotStore();
+    const { logout, hasPermission } = useAuthStore();
+    const canManageBot = hasPermission('bot.manage');
+    const canManageConfig = hasPermission('config.manage');
 
     function handleLogout() {
-        localStorage.removeItem('auth_token');
+        logout();
         navigate('/login');
     }
 
@@ -37,18 +41,22 @@ export function Topbar() {
 
                 <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                     <ThemeToggle />
-                    <Button variant="outline" size="icon" aria-label="Restart bot" onClick={() => void restartBot()} className="rounded-lg h-10 w-10 bg-white/80 dark:bg-slate-900">
-                        <RefreshCw className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Buka konfigurasi"
-                        onClick={() => navigate('/config')}
-                        className="rounded-lg h-10 w-10"
-                    >
-                        <Settings className="h-4 w-4" />
-                    </Button>
+                    {canManageBot ? (
+                        <Button variant="outline" size="icon" aria-label="Restart bot" onClick={() => void restartBot()} className="rounded-lg h-10 w-10 bg-white/80 dark:bg-slate-900">
+                            <RefreshCw className="h-4 w-4" />
+                        </Button>
+                    ) : null}
+                    {canManageConfig ? (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Buka konfigurasi"
+                            onClick={() => navigate('/config')}
+                            className="rounded-lg h-10 w-10"
+                        >
+                            <Settings className="h-4 w-4" />
+                        </Button>
+                    ) : null}
                     <Button variant="ghost" size="icon" aria-label="Keluar" onClick={handleLogout} className="rounded-lg h-10 w-10">
                         <LogOut className="h-4 w-4" />
                     </Button>

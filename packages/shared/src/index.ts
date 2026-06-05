@@ -117,8 +117,76 @@ export interface LoginRequest {
     password: string;
 }
 
+export type DashboardPermission =
+    | "dashboard.view"
+    | "conversations.view"
+    | "contacts.manage"
+    | "groups.manage"
+    | "config.manage"
+    | "analytics.view"
+    | "logs.view"
+    | "users.manage"
+    | "roles.manage"
+    | "bot.manage"
+    | "maintenance.manage"
+    | "*";
+
+export interface Role {
+    id: string;
+    name: string;
+    permissions: DashboardPermission[];
+    created_at: string;
+    updated_at: string;
+}
+
+export interface User {
+    id: string;
+    username: string;
+    email?: string | null;
+    is_active: boolean;
+    role_id: string | null;
+    role_name: string | null;
+    permissions: DashboardPermission[];
+    last_login_at?: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface AuthUser {
+    id: string;
+    username: string;
+    role_name: string | null;
+    permissions: DashboardPermission[];
+}
+
 export interface LoginResponse {
     token: string;
+    user: AuthUser;
+}
+
+export interface CreateRoleRequest {
+    name: string;
+    permissions: DashboardPermission[];
+}
+
+export interface UpdateRoleRequest {
+    name?: string;
+    permissions?: DashboardPermission[];
+}
+
+export interface CreateUserRequest {
+    username: string;
+    password: string;
+    email?: string | null;
+    role_id?: string | null;
+    is_active?: boolean;
+}
+
+export interface UpdateUserRequest {
+    password?: string;
+    email?: string | null;
+    role_id?: string | null;
+    is_active?: boolean;
 }
 
 export interface TestPromptRequest {

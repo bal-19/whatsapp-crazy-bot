@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bot, LockKeyhole, Sparkles } from 'lucide-react';
 import { authService } from '@/lib/services/authService';
+import { useAuthStore } from '@/stores/authStore';
 import { Button, Input, Card, CardContent, CardHeader, CardTitle, CardDescription, Label } from '@/components/ui';
 
 export function LoginPage() {
     const navigate = useNavigate();
+    const setSession = useAuthStore((state) => state.setSession);
     const [username, setUsername] = useState('admin');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -15,7 +17,7 @@ export function LoginPage() {
         setIsLoading(true);
         try {
             const response = await authService.login({ username, password });
-            localStorage.setItem('auth_token', response.token);
+            setSession(response.token, response.user);
             navigate('/');
         } finally {
             setIsLoading(false);

@@ -370,29 +370,54 @@ Metadata `audit_reply_sent` sekarang juga dapat memuat:
 - `mediaSource`
 - `hasCaption`
 
-## 12. Admin Authentication
+## 12. Dashboard Authentication dan Authorization
 
-Auth dashboard sekarang menggunakan database, bukan env credentials.
+Auth dashboard sekarang menggunakan database, bukan env credentials saja. Selain login, sistem juga punya role dan permission untuk membatasi halaman serta fitur dashboard.
 
 Komponen:
 
 - [apps/server/src/auth/jwt.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/auth/jwt.ts:1)
-- [apps/server/src/services/adminUserService.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/services/adminUserService.ts:1)
+- [apps/server/src/auth/permissions.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/auth/permissions.ts:1)
+- [apps/server/src/services/accessControlService.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/services/accessControlService.ts:1)
 - [supabase/migrations/202606030002_create_admin_users_table.sql](/Volumes/Iqbal/websites/whatsapp-bot/supabase/migrations/202606030002_create_admin_users_table.sql:1)
+- [supabase/migrations/202606050002_create_roles_and_users.sql](/Volumes/Iqbal/websites/whatsapp-bot/supabase/migrations/202606050002_create_roles_and_users.sql:1)
 
 Flow:
 
 1. `POST /api/v1/auth/login`
-2. query `admin_users` by username
+2. query `users` by username
 3. cek `is_active`
 4. verify bcrypt hash
-5. sign JWT 12 jam
-6. update `last_login_at`
+5. ambil relasi `roles.permissions`
+6. sign JWT 12 jam dengan metadata user + permission
+7. update `last_login_at`
+
+Permission runtime yang aktif sekarang:
+
+- `dashboard.view`
+- `conversations.view`
+- `contacts.manage`
+- `groups.manage`
+- `config.manage`
+- `analytics.view`
+- `logs.view`
+- `users.manage`
+- `roles.manage`
+- `bot.manage`
+- `maintenance.manage`
+
+Catatan:
+
+- halaman dashboard dibatasi di frontend dan backend
+- endpoint sensitif memakai middleware `requirePermission(...)`
+- sidebar hanya menampilkan menu yang sesuai permission user login
+- role atau permission yang diubah di database paling aman dianggap aktif penuh setelah user login ulang
 
 Default seed dari migration:
 
 - username: `admin`
-- password: `admin123`
+- password: `Admin@123`
+- role: `Admin`
 
 ## 13. Testing yang Sudah Ada
 

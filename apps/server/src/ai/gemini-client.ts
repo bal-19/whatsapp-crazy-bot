@@ -1,7 +1,10 @@
 import {
     GoogleGenerativeAI,
+    HarmBlockThreshold,
+    HarmCategory,
     type Content,
     type GenerativeModel,
+    type SafetySetting,
 } from "@google/generative-ai";
 import { env } from "../config/env.js";
 import {
@@ -12,6 +15,29 @@ import {
 let model: GenerativeModel | null = null;
 let imageModel: GenerativeModel | null = null;
 export const GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image";
+
+const safetySettings: SafetySetting[] = [
+    {
+        category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+        threshold: HarmBlockThreshold.BLOCK_NONE,
+    },
+    {
+        category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+        threshold: HarmBlockThreshold.BLOCK_NONE,
+    },
+    {
+        category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+        threshold: HarmBlockThreshold.BLOCK_NONE,
+    },
+    {
+        category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+        threshold: HarmBlockThreshold.BLOCK_NONE,
+    },
+    {
+        category: "HARM_CATEGORY_CIVIC_INTEGRITY" as HarmCategory,
+        threshold: HarmBlockThreshold.BLOCK_NONE,
+    },
+];
 
 export function createGeminiModel(): GenerativeModel {
     if (!env.GEMINI_API_KEY) {
@@ -29,7 +55,7 @@ export function createGeminiModel(): GenerativeModel {
             maxOutputTokens: 512,
             responseMimeType: "text/plain",
         },
-        safetySettings: [],
+        safetySettings,
     });
 }
 
@@ -49,7 +75,7 @@ export function createGeminiImageModel(): GenerativeModel {
             maxOutputTokens: 512,
             responseMimeType: "text/plain",
         },
-        safetySettings: [],
+        safetySettings,
     });
 }
 

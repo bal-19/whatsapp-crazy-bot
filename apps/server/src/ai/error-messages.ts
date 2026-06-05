@@ -1,7 +1,6 @@
 export const ERROR_MESSAGES = {
     timeout: "Sayang, aku nungguin kamu sampe ketiduran",
     rate_limit: "Pelan pelan dong sayang",
-    safety: "Sayangg, jorok ih",
     server_error: "Error jir😹",
     generic: "Bentar ada yang salah",
     queue_full: "Gantian yaaa bub",

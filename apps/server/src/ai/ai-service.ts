@@ -45,7 +45,9 @@ export async function generateBotReply(
         return {
             reply: createTextReply(ERROR_MESSAGES.queue_full),
             latencyMs: 0,
-            aiModel: input.imageAttachment ? GEMINI_IMAGE_MODEL : env.GEMINI_MODEL,
+            aiModel: input.imageAttachment
+                ? GEMINI_IMAGE_MODEL
+                : env.GEMINI_MODEL,
         };
     }
 
@@ -53,8 +55,9 @@ export async function generateBotReply(
     // Prioritize passed config, otherwise load from cached BotConfigService
     const config = input.config ?? (await botConfigService.getConfig());
     await ensureMemoryHydrated(input.contactId);
-    const personalMemorySummary =
-        await personalMemoryService.getSummary(input.contactId);
+    const personalMemorySummary = await personalMemoryService.getSummary(
+        input.contactId,
+    );
 
     const systemPrompt = buildSystemPrompt({
         botName: config.bot_name,
@@ -89,7 +92,9 @@ export async function generateBotReply(
         return {
             reply: createTextReply(reply),
             latencyMs,
-            aiModel: input.imageAttachment ? GEMINI_IMAGE_MODEL : env.GEMINI_MODEL,
+            aiModel: input.imageAttachment
+                ? GEMINI_IMAGE_MODEL
+                : env.GEMINI_MODEL,
         };
     } catch (error) {
         const latencyMs = Date.now() - startedAt;
@@ -102,7 +107,9 @@ export async function generateBotReply(
         return {
             reply: createTextReply(classifyGeminiError(message)),
             latencyMs,
-            aiModel: input.imageAttachment ? GEMINI_IMAGE_MODEL : env.GEMINI_MODEL,
+            aiModel: input.imageAttachment
+                ? GEMINI_IMAGE_MODEL
+                : env.GEMINI_MODEL,
         };
     }
 }
@@ -126,7 +133,6 @@ function classifyGeminiError(message: string): string {
     if (/timeout/i.test(message)) return ERROR_MESSAGES.timeout;
     if (/429|rate|resource exhausted/i.test(message))
         return ERROR_MESSAGES.rate_limit;
-    if (/safety|blocked/i.test(message)) return ERROR_MESSAGES.safety;
     if (/5\d\d|server/i.test(message)) return ERROR_MESSAGES.server_error;
     return ERROR_MESSAGES.generic;
 }

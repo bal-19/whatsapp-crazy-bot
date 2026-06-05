@@ -8,7 +8,7 @@ import { Button, Input, Card, CardContent, CardHeader, CardTitle, CardDescriptio
 export function LoginPage() {
     const navigate = useNavigate();
     const setSession = useAuthStore((state) => state.setSession);
-    const [username, setUsername] = useState('admin');
+    const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
@@ -51,6 +51,7 @@ export function LoginPage() {
                                     id="username"
                                     className="rounded-2xl bg-white/90 dark:bg-slate-800"
                                     value={username}
+                                    placeholder='username'
                                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
                                 />
                             </div>
@@ -61,6 +62,7 @@ export function LoginPage() {
                                     className="rounded-2xl bg-white/90 dark:bg-slate-800"
                                     type="password"
                                     value={password}
+                                    placeholder='password'
                                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
                                 />
                             </div>

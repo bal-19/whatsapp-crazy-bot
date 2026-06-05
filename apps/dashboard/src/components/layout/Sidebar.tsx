@@ -49,6 +49,17 @@ export function Sidebar() {
 
     const visibleItems = items.filter((item) => hasPermission(item.permission));
 
+    // Flatten menu items for mobile - include children as separate items
+    const flattenedItems = visibleItems.reduce<MenuItem[]>((acc, item) => {
+        if (item.children) {
+            // Add all children that user has permission for
+            const visibleChildren = item.children.filter((child) => hasPermission(child.permission));
+            return [...acc, ...visibleChildren];
+        }
+        // Add regular items
+        return [...acc, item];
+    }, []);
+
     const toggleMenu = (label: string) => {
         setExpandedMenus((prev) => {
             const next = new Set(prev);
@@ -170,50 +181,97 @@ export function Sidebar() {
     };
 
     return (
-        <aside className="w-full shrink-0 rounded-2xl border border-white/60 dark:border-slate-700/50 bg-white/85 dark:bg-slate-900/50 p-4 text-slate-900 dark:text-slate-50 backdrop-blur-sm sm:p-5 lg:h-[calc(100vh-132px)] lg:w-64 lg:max-w-64 lg:rounded-2xl lg:p-5 transition-colors overflow-hidden flex flex-col lg:flex-col lg:overflow-hidden">
-            {/* Header */}
-            <motion.div
-                className="hidden rounded-xl border border-emerald-100/70 dark:border-emerald-600/30 bg-emerald-50/50 dark:bg-emerald-950/40 p-4 lg:block lg:flex-shrink-0"
-                initial={{ opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={entranceTransition}
-            >
-                <div className="flex items-center gap-2.5">
-                    <div>
-                        <BrandMark className="h-10 w-10 rounded-lg" />
+        <>
+            {/* Desktop Sidebar */}
+            <aside className="hidden lg:flex w-full shrink-0 rounded-2xl border border-white/60 dark:border-slate-700/50 bg-white/85 dark:bg-slate-900/50 p-4 text-slate-900 dark:text-slate-50 backdrop-blur-sm sm:p-5 lg:h-[calc(100vh-132px)] lg:w-64 lg:max-w-64 lg:rounded-2xl lg:p-5 transition-colors overflow-hidden flex-col lg:overflow-hidden">
+                {/* Header */}
+                <motion.div
+                    className="rounded-xl border border-emerald-100/70 dark:border-emerald-600/30 bg-emerald-50/50 dark:bg-emerald-950/40 p-4 flex-shrink-0"
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={entranceTransition}
+                >
+                    <div className="flex items-center gap-2.5">
+                        <div>
+                            <BrandMark className="h-10 w-10 rounded-lg" />
+                        </div>
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Control</p>
+                            <h2 className="text-base font-bold text-slate-900 dark:text-slate-50">WhatsApp AI</h2>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Control</p>
-                        <h2 className="text-base font-bold text-slate-900 dark:text-slate-50">WhatsApp AI</h2>
-                    </div>
-                </div>
-                <p className="mt-3 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
-                    Dashboard untuk memantau percakapan, analytics, dan konfigurasi bot.
-                </p>
-            </motion.div>
+                    <p className="mt-3 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+                        Dashboard untuk memantau percakapan, analytics, dan konfigurasi bot.
+                    </p>
+                </motion.div>
 
-            {/* Navigation */}
+                {/* Navigation */}
+                <motion.nav
+                    className="soft-scrollbar mx-0 mt-5 block overflow-y-auto flex-1 px-0"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={entranceTransition}
+                >
+                    {visibleItems.map((item) => renderMenuItem(item))}
+                </motion.nav>
+
+                {/* Footer Note */}
+                <motion.div
+                    className="mt-4 rounded-lg border border-emerald-100 dark:border-emerald-600/30 bg-emerald-50/50 dark:bg-emerald-950/40 p-4 flex-shrink-0 w-full overflow-hidden"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={entranceTransition}
+                >
+                    <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 truncate">Note</p>
+                    <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400 line-clamp-3 break-words">
+                        Visual dashboard yang clean dan modern dengan fokus pada usability.
+                    </p>
+                </motion.div>
+            </aside>
+
+            {/* Mobile Bottom Navigation */}
             <motion.nav
-                className="soft-scrollbar -mx-1 mt-4 flex gap-2 overflow-x-auto px-1 lg:mx-0 lg:mt-5 lg:block lg:overflow-y-auto lg:flex-1 lg:px-0"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={entranceTransition}
-            >
-                {visibleItems.map((item) => renderMenuItem(item))}
-            </motion.nav>
-
-            {/* Footer Note */}
-            <motion.div
-                className="mt-4 hidden rounded-lg border border-emerald-100 dark:border-emerald-600/30 bg-emerald-50/50 dark:bg-emerald-950/40 p-4 lg:block lg:flex-shrink-0 w-full overflow-hidden"
-                initial={{ opacity: 0, y: 6 }}
+                className="fixed bottom-3 left-0 right-0 z-50 lg:hidden flex justify-center items-center px-4"
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={entranceTransition}
             >
-                <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 truncate">Note</p>
-                <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400 line-clamp-3 break-words">
-                    Visual dashboard yang clean dan modern dengan fokus pada usability.
-                </p>
-            </motion.div>
-        </aside>
+                <div className="flex items-center justify-center gap-1.5 rounded-full border border-slate-800/50 dark:border-slate-700/50 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-xl px-3 py-2.5 shadow-2xl">
+                    {flattenedItems.map((item) => {
+                        if (!item.to) return null;
+
+                        return (
+                            <NavLink
+                                key={item.to}
+                                to={item.to}
+                                end={item.to === '/'}
+                            >
+                                {({ isActive }) => (
+                                    <motion.div
+                                        className={cn(
+                                            'relative flex h-10 w-10 items-center justify-center rounded-full transition-all',
+                                            isActive
+                                                ? 'bg-white dark:bg-white shadow-lg'
+                                                : 'bg-transparent'
+                                        )}
+                                        whileTap={{ scale: 0.95 }}
+                                        whileHover={{ scale: 1.05 }}
+                                    >
+                                        <item.icon
+                                            className={cn(
+                                                'h-[18px] w-[18px] transition-colors',
+                                                isActive
+                                                    ? 'text-slate-900 dark:text-slate-900'
+                                                    : 'text-slate-400 dark:text-slate-500'
+                                            )}
+                                        />
+                                    </motion.div>
+                                )}
+                            </NavLink>
+                        );
+                    })}
+                </div>
+            </motion.nav>
+        </>
     );
 }

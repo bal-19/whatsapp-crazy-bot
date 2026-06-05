@@ -60,7 +60,7 @@ export function AppShell() {
             </div>
 
             <Topbar />
-            <div className="relative mx-auto flex w-full max-w-screen-2xl flex-col gap-4 px-4 pb-6 pt-4 sm:gap-5 sm:px-5 sm:pb-7 sm:pt-5 lg:flex-row lg:gap-5 lg:px-5 lg:pb-8 lg:pt-5">
+            <div className="relative mx-auto flex w-full max-w-screen-2xl flex-col gap-4 px-4 pb-20 pt-4 sm:gap-5 sm:px-5 sm:pb-20 sm:pt-5 lg:pb-8 lg:flex-row lg:gap-5 lg:px-5 lg:pt-5">
                 <Sidebar />
                 <motion.main
                     className="soft-scrollbar min-h-0 flex-1 overflow-auto rounded-2xl border border-white/50 dark:border-slate-700/50 bg-white/85 dark:bg-slate-900/50 p-5 shadow-sm backdrop-blur-sm sm:p-6 lg:h-[calc(100vh-132px)] lg:rounded-2xl lg:p-6"

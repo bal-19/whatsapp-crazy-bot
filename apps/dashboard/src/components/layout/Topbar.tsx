@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useBotStore } from '@/stores/botStore';
 import { useAuthStore } from '@/stores/authStore';
 import { StatusBadge, Button, ThemeToggle } from '@/components/ui';
+import { PWAInstallButton } from '@/components/ui/PWAInstallButton';
 import { formatDuration } from '@/lib/utils';
 import { BrandMark } from './BrandMark';
 
@@ -39,6 +40,7 @@ export function Topbar() {
                 </div>
 
                 <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                    <PWAInstallButton />
                     <ThemeToggle />
                     {canManageBot ? (
                         <Button variant="outline" size="icon" aria-label="Restart bot" onClick={() => void restartBot()} className="rounded-lg h-10 w-10 bg-white/80 dark:bg-slate-900">

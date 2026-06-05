@@ -1,4 +1,3 @@
-// Re-export all UI components for easier imports
 export * from "./alert-dialog";
 export * from "./badge";
 export * from "./button";
@@ -11,10 +10,12 @@ export * from "./separator";
 export * from "./switch";
 export * from "./tabs";
 export * from "./textarea";
+export * from "./theme-toggle";
 export * from "./toast";
 export * from "./toaster";
 export * from "./use-toast";
-export { ChatBubble } from "./ChatBubble";
-export { StatCard } from "./StatCard";
-export { StatusBadge } from "./StatusBadge";
-export { ThemeToggle } from "./theme-toggle";
+export * from "./ChatBubble";
+export * from "./StatCard";
+export * from "./StatusBadge";
+export * from "./PWAInstallButton";
+export * from "./PWAStatusIndicator";

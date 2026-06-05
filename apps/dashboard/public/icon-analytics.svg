@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <rect width="192" height="192" fill="#8B5CF6" rx="45"/>
+  
+  <!-- Bar chart -->
+  <rect x="40" y="120" width="20" height="50" fill="white"/>
+  <rect x="70" y="90" width="20" height="80" fill="white"/>
+  <rect x="100" y="60" width="20" height="110" fill="white"/>
+  <rect x="130" y="40" width="20" height="130" fill="white"/>
+  
+  <!-- Chart line -->
+  <line x1="30" y1="170" x2="160" y2="170" stroke="white" stroke-width="3" stroke-linecap="round"/>
+</svg>

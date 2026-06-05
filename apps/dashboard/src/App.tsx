@@ -13,6 +13,7 @@ import { LogsPage } from '@/pages/LogsPage';
 import { UsersPage } from '@/pages/UsersPage';
 import { RolesPage } from '@/pages/RolesPage';
 import { Toaster } from '@/components/ui/toaster';
+import { PWAStatusIndicator } from '@/components/ui/PWAStatusIndicator';
 import { useAuthStore } from '@/stores/authStore';
 import { firstAccessibleRoute } from '@/lib/permissions';
 
@@ -34,6 +35,7 @@ export function App() {
                 </Route>
             </Routes>
             <Toaster />
+            <PWAStatusIndicator />
         </>
     );
 }

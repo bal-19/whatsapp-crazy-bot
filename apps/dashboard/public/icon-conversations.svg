@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <rect width="192" height="192" fill="#3B82F6" rx="45"/>
+  
+  <!-- Chat messages -->
+  <rect x="30" y="40" width="80" height="35" fill="white" rx="8"/>
+  <circle cx="120" cy="57" r="4" fill="white"/>
+  <circle cx="130" cy="57" r="4" fill="white"/>
+  <circle cx="140" cy="57" r="4" fill="white"/>
+  
+  <rect x="82" y="90" width="80" height="35" fill="white" rx="8"/>
+  <circle cx="40" cy="107" r="4" fill="white"/>
+  <circle cx="50" cy="107" r="4" fill="white"/>
+  <circle cx="60" cy="107" r="4" fill="white"/>
+  
+  <rect x="30" y="140" width="80" height="35" fill="white" rx="8"/>
+  <circle cx="120" cy="157" r="4" fill="white"/>
+  <circle cx="130" cy="157" r="4" fill="white"/>
+  <circle cx="140" cy="157" r="4" fill="white"/>
+</svg>

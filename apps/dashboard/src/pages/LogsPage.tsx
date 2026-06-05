@@ -63,10 +63,10 @@ export function LogsPage() {
                                 {log.level}
                             </span>
                             <span className="text-xs leading-relaxed text-muted-foreground">{formatDate(log.created_at)}</span>
-                            <div className="space-y-2">
+                            <div className="space-y-2 min-w-0">
                                 <span className="block leading-relaxed text-card-foreground">{log.message}</span>
                                 {log.meta ? (
-                                    <pre className="overflow-auto rounded-2xl bg-slate-950/90 p-3 text-[11px] leading-relaxed text-slate-100">
+                                    <pre className="overflow-auto rounded-2xl bg-slate-950/90 p-3 text-[11px] leading-relaxed text-slate-100 max-w-full break-words whitespace-pre-wrap word-break">
                                         {JSON.stringify(log.meta, null, 2)}
                                     </pre>
                                 ) : null}

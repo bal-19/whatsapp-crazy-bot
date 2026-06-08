@@ -185,9 +185,3 @@ function extractMultimodalReply(response: {
             : {}),
     };
 }
-            },
-        },
-    ]);
-
-    return result.response.text();
-}

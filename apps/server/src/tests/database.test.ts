@@ -188,6 +188,57 @@ describe('appDb personal memories', () => {
     assert.deepEqual(await appDb.listPersonalMemories(contactId), []);
   });
 
+  it('hydrates group history across different member scopes when using the group jid', async () => {
+    const groupJid = `120363-history-${Date.now()}@g.us`;
+    const firstMemberScope = `${groupJid}::62812001@s.whatsapp.net`;
+    const secondMemberScope = `${groupJid}::62812002@s.whatsapp.net`;
+
+    await appDb.insertMessage({
+      id: `group-history-a-${Date.now()}`,
+      contact_id: firstMemberScope,
+      direction: 'inbound',
+      body: 'halo dari member pertama',
+      message_timestamp: '2026-06-01T10:00:00.000Z'
+    });
+    await appDb.insertMessage({
+      id: `group-history-b-${Date.now()}`,
+      contact_id: secondMemberScope,
+      direction: 'outbound',
+      body: 'balasan ke grup',
+      message_timestamp: '2026-06-01T10:01:00.000Z'
+    });
+
+    const history = await appDb.getRecentHistory(groupJid, 20);
+    assert.equal(history.length, 2);
+    assert.equal(history[0]?.contact_id, firstMemberScope);
+    assert.equal(history[1]?.contact_id, secondMemberScope);
+  });
+
+  it('clears all member histories when a group-scoped reset targets the group jid', async () => {
+    const groupJid = `120363-reset-${Date.now()}@g.us`;
+    const firstMemberScope = `${groupJid}::62813001@s.whatsapp.net`;
+    const secondMemberScope = `${groupJid}::62813002@s.whatsapp.net`;
+
+    await appDb.insertMessage({
+      id: `group-reset-a-${Date.now()}`,
+      contact_id: firstMemberScope,
+      direction: 'inbound',
+      body: 'pesan pertama'
+    });
+    await appDb.insertMessage({
+      id: `group-reset-b-${Date.now()}`,
+      contact_id: secondMemberScope,
+      direction: 'inbound',
+      body: 'pesan kedua'
+    });
+
+    await appDb.clearConversation(groupJid);
+
+    assert.deepEqual(await appDb.getRecentHistory(firstMemberScope, 20), []);
+    assert.deepEqual(await appDb.getRecentHistory(secondMemberScope, 20), []);
+    assert.deepEqual(await appDb.getRecentHistory(groupJid, 20), []);
+  });
+
   it('purges operational data without touching preserved domains', async () => {
     const contactId = `purge-${Date.now()}@s.whatsapp.net`;
     const groupJid = `120363-purge-${Date.now()}@g.us`;

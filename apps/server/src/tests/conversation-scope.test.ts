@@ -1,7 +1,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { proto } from "@whiskeysockets/baileys";
-import { resolveConversationScope } from "../bot/conversation-scope.js";
+import {
+    resolveConversationScope,
+    resolveMemoryScopeKey,
+} from "../bot/conversation-scope.js";
 
 describe("resolveConversationScope", () => {
     it("uses the personal JID for direct chats", () => {
@@ -51,6 +54,26 @@ describe("resolveConversationScope", () => {
         assert.equal(scope.participantJid, null);
         assert.equal(scope.isGroup, true);
         assert.equal(scope.usedGroupFallback, true);
+    });
+
+    it("uses a shared memory scope per group conversation", () => {
+        const groupScope = resolveConversationScope(
+            createMessage({
+                remoteJid: "120363@g.us",
+                participant: "628222@s.whatsapp.net",
+            }),
+        );
+        const directScope = resolveConversationScope(
+            createMessage({ remoteJid: "628111@s.whatsapp.net" }),
+        );
+
+        assert.ok(groupScope);
+        assert.ok(directScope);
+        assert.equal(resolveMemoryScopeKey(groupScope), "120363@g.us");
+        assert.equal(
+            resolveMemoryScopeKey(directScope),
+            "628111@s.whatsapp.net",
+        );
     });
 });
 

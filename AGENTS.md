@@ -161,8 +161,9 @@ Aturan:
 
 Dampak:
 
-- history dan memory session di grup dipisah per member
-- `/reset` di grup hanya membersihkan scope member yang memicu reset
+- history message tetap tersimpan per scoped member
+- memory percakapan AI di grup digabung per `groupJid`, jadi semua member dalam grup berbagi konteks chat yang sama
+- `/reset` di grup membersihkan memory percakapan grup tersebut, bukan hanya member pemicu
 - outbound message tetap disimpan ke `contact_id` scoped
 - dashboard conversation bisa menampilkan beberapa conversation untuk satu grup karena tiap member punya scope sendiri
 - dashboard menampilkan scoped group sebagai `Member <nama member> di grup <nama grup>` bila metadata tersedia, lalu fallback ke nomor/JID bila belum tersedia
@@ -190,8 +191,9 @@ Catatan struktur data yang aktif sekarang:
 
 Catatan grup:
 
-- key memory memakai conversation scope
-- pesan dari member berbeda dalam grup yang sama tidak berbagi memory session
+- key memory untuk DM memakai `contact_id`
+- key memory untuk grup memakai `groupJid`
+- saat history dihydrate untuk AI pada grup, source diambil gabungan dari semua scoped member dalam grup yang sama
 
 ## 6.1 Personal Memory
 
@@ -202,7 +204,7 @@ Komponen:
 - [apps/server/src/ai/personal-memory.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/ai/personal-memory.ts:1)
 - [apps/server/src/services/personalMemoryService.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/services/personalMemoryService.ts:1)
 
-Perilaku V1:
+Perilaku saat ini:
 
 - memory mengikuti `contact_id` hasil conversation scope
 - memory hanya disimpan dari pola eksplisit

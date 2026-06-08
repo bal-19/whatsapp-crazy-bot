@@ -23,6 +23,7 @@ import { personalMemoryService } from "../services/personalMemoryService.js";
 
 export interface GenerateReplyInput {
     contactId: string;
+    memoryScopeKey?: string;
     contactName?: string | null;
     message: string;
     config?: BotConfig;
@@ -52,9 +53,10 @@ export async function generateBotReply(
     }
 
     const startedAt = Date.now();
+    const memoryScopeKey = input.memoryScopeKey ?? input.contactId;
     // Prioritize passed config, otherwise load from cached BotConfigService
     const config = input.config ?? (await botConfigService.getConfig());
-    await ensureMemoryHydrated(input.contactId);
+    await ensureMemoryHydrated(memoryScopeKey);
     const personalMemorySummary = await personalMemoryService.getSummary(
         input.contactId,
     );
@@ -73,7 +75,7 @@ export async function generateBotReply(
             if (input.imageAttachment) {
                 return generateGeminiImageReply({
                     systemPrompt,
-                    history: memory.getHistory(input.contactId),
+                    history: memory.getHistory(memoryScopeKey),
                     message: input.message,
                     image: input.imageAttachment,
                 });
@@ -81,14 +83,14 @@ export async function generateBotReply(
 
             return generateGeminiReply(
                 systemPrompt,
-                memory.getHistory(input.contactId),
+                memory.getHistory(memoryScopeKey),
                 input.message,
             );
         });
 
         const reply = processGeminiOutput(raw ?? "");
         const latencyMs = Date.now() - startedAt;
-        memory.addTurn(input.contactId, input.message, reply);
+        memory.addTurn(memoryScopeKey, input.message, reply);
         return {
             reply: createTextReply(reply),
             latencyMs,

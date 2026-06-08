@@ -165,6 +165,10 @@ function resolveDisplayName(
     return hasDisplayNameValue(incoming) ? incoming.trim() : (current ?? null);
 }
 
+function isGroupScopeKey(value: string): boolean {
+    return value.endsWith("@g.us");
+}
+
 interface DatabaseAdapter {
     getConfig(): Promise<BotConfig>;
     updateConfig(patch: Partial<BotConfig>): Promise<BotConfig>;
@@ -693,12 +697,49 @@ class InMemoryDatabase implements DatabaseAdapter {
     }
 
     async clearConversation(contactId: string): Promise<void> {
+        if (isGroupScopeKey(contactId)) {
+            const scopeKeys = [...this.conversationScopes.values()]
+                .filter(
+                    (scope) =>
+                        scope.group_jid === contactId || scope.scope_key === contactId,
+                )
+                .map((scope) => scope.scope_key);
+
+            this.messages = this.messages.filter(
+                (message) => !scopeKeys.includes(message.contact_id),
+            );
+            return;
+        }
+
         this.messages = this.messages.filter(
             (message) => message.contact_id !== contactId,
         );
     }
 
     async getRecentHistory(contactId: string, limit = 20): Promise<Message[]> {
+        if (isGroupScopeKey(contactId)) {
+            const scopeKeys = new Set(
+                [...this.conversationScopes.values()]
+                    .filter(
+                        (scope) =>
+                            scope.group_jid === contactId ||
+                            scope.scope_key === contactId,
+                    )
+                    .map((scope) => scope.scope_key),
+            );
+
+            return this.messages
+                .filter((message) => scopeKeys.has(message.contact_id))
+                .sort(
+                    (a, b) =>
+                        Date.parse(b.message_timestamp) -
+                        Date.parse(a.message_timestamp),
+                )
+                .slice(0, limit)
+                .reverse()
+                .map((message) => mapMessageRow(message, message.contact_id));
+        }
+
         return this.messages
             .filter((message) => message.contact_id === contactId)
             .sort(
@@ -1159,6 +1200,21 @@ class SupabaseDatabase implements DatabaseAdapter {
 
     async clearConversation(contactId: string): Promise<void> {
         await this.ready;
+        if (isGroupScopeKey(contactId)) {
+            const scopeKeys = await this.listScopeIdsForGroup(contactId);
+            if (scopeKeys.length === 0) return;
+
+            const { error } = await supabaseAdmin!
+                .from("messages")
+                .delete()
+                .in("contact_id", scopeKeys);
+            assertSupabaseSuccess(
+                error,
+                "Gagal menghapus history percakapan grup dari Supabase.",
+            );
+            return;
+        }
+
         const scope = await this.findConversationScopeByKey(contactId);
         if (!scope) return;
 
@@ -1174,6 +1230,34 @@ class SupabaseDatabase implements DatabaseAdapter {
 
     async getRecentHistory(contactId: string, limit = 20): Promise<Message[]> {
         await this.ready;
+        if (isGroupScopeKey(contactId)) {
+            const scopeKeyById = await this.listScopeKeyMapForGroup(contactId);
+            const scopeIds = [...scopeKeyById.keys()];
+            if (scopeIds.length === 0) return [];
+
+            const { data, error } = await supabaseAdmin!
+                .from("messages")
+                .select("*")
+                .in("contact_id", scopeIds)
+                .order("message_timestamp", { ascending: false })
+                .order("created_at", { ascending: false })
+                .limit(limit);
+
+            assertSupabaseSuccess(
+                error,
+                "Gagal mengambil recent history grup dari Supabase.",
+            );
+
+            return ((data ?? []) as MessageRow[])
+                .reverse()
+                .map((row) =>
+                    mapMessageRow(
+                        row,
+                        scopeKeyById.get(row.contact_id) ?? contactId,
+                    ),
+                );
+        }
+
         const scope = await this.findConversationScopeByKey(contactId);
         if (!scope) return [];
 
@@ -1679,6 +1763,41 @@ class SupabaseDatabase implements DatabaseAdapter {
 
         assertSupabaseSuccess(error, "Gagal menyimpan group ke Supabase.");
         return data as WhatsAppGroupRow;
+    }
+
+    private async listScopeIdsForGroup(groupJid: string): Promise<string[]> {
+        const { data, error } = await supabaseAdmin!
+            .from("conversation_scopes")
+            .select("id")
+            .eq("group_jid", groupJid);
+
+        assertSupabaseSuccess(
+            error,
+            "Gagal mengambil conversation scope grup dari Supabase.",
+        );
+
+        return ((data ?? []) as Array<{ id: string }>).map((row) => row.id);
+    }
+
+    private async listScopeKeyMapForGroup(
+        groupJid: string,
+    ): Promise<Map<string, string>> {
+        const { data, error } = await supabaseAdmin!
+            .from("conversation_scopes")
+            .select("id, scope_key")
+            .eq("group_jid", groupJid);
+
+        assertSupabaseSuccess(
+            error,
+            "Gagal mengambil mapping conversation scope grup dari Supabase.",
+        );
+
+        return new Map(
+            ((data ?? []) as Array<{ id: string; scope_key: string }>).map((row) => [
+                row.id,
+                row.scope_key,
+            ]),
+        );
     }
 }
 

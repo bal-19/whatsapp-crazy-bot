@@ -26,6 +26,7 @@ import { generateBotReply } from "../ai/ai-service.js";
 import { createWhatsAppAuthState } from "./whatsapp-auth-state.js";
 import {
     resolveConversationScope,
+    resolveMemoryScopeKey,
     toConversationScopeLogMeta,
     type ConversationScope,
 } from "./conversation-scope.js";
@@ -225,6 +226,7 @@ export class BotManager {
         if (!scope) return;
 
         const scopeMeta = toConversationScopeLogMeta(scope);
+        const memoryScopeKey = resolveMemoryScopeKey(scope);
         if (scope.usedGroupFallback) {
             logService.write("warn", "conversation_scope_group_fallback", {
                 ...scopeMeta,
@@ -281,8 +283,8 @@ export class BotManager {
             personalMemorySummary: currentPersonalMemorySummary,
         });
         if (intent === "reset") {
-            memory.clearSession(scope.contactId);
-            await appDb.clearConversation(scope.contactId);
+            memory.clearSession(memoryScopeKey);
+            await appDb.clearConversation(memoryScopeKey);
             const resetInbound = await appDb.insertMessage({
                 id: messageId,
                 contact_id: scope.contactId,
@@ -395,6 +397,7 @@ export class BotManager {
         await this.sock.sendPresenceUpdate("composing", scope.deliveryJid);
         const result = await generateBotReply({
             contactId: scope.contactId,
+            memoryScopeKey,
             contactName,
             message: sanitized.sanitized,
             config,

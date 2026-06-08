@@ -67,6 +67,10 @@ export function toConversationScopeLogMeta(
     };
 }
 
+export function resolveMemoryScopeKey(scope: ConversationScope): string {
+    return scope.groupJid ?? scope.contactId;
+}
+
 export function deriveContactJidFromScopeKey(scopeKey: string): string {
     const [groupJid, participantJid] = scopeKey.split("::");
     return participantJid ? participantJid : groupJid;
@@ -74,7 +78,11 @@ export function deriveContactJidFromScopeKey(scopeKey: string): string {
 
 export function deriveGroupJidFromScopeKey(scopeKey: string): string | null {
     const [groupJid, participantJid] = scopeKey.split("::");
-    return participantJid ? groupJid : null;
+    if (participantJid) {
+        return groupJid;
+    }
+
+    return scopeKey.endsWith("@g.us") ? scopeKey : null;
 }
 
 function normalizeParticipantJid(value?: string | null): string | null {

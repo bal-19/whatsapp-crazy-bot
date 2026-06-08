@@ -15,7 +15,7 @@ import {
 
 let model: GenerativeModel | null = null;
 let imageModel: GenerativeModel | null = null;
-export const GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image";
+export const GEMINI_IMAGE_MODEL = "gemini-2.5-flash-preview-image";
 
 export interface GeminiMultimodalReply {
     text: string;
@@ -184,4 +184,10 @@ function extractMultimodalReply(response: {
               }
             : {}),
     };
+}
+            },
+        },
+    ]);
+
+    return result.response.text();
 }

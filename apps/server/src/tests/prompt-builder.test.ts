@@ -1,6 +1,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildSystemPrompt } from '../ai/prompt-builder.js';
+import {
+  buildDocumentSystemPrompt,
+  buildSystemPrompt
+} from '../ai/prompt-builder.js';
 
 describe('buildSystemPrompt', () => {
   it('includes core rules, persona, WIB timestamp, and contact name', () => {
@@ -18,5 +21,17 @@ describe('buildSystemPrompt', () => {
     assert.match(prompt, /Budi/);
     assert.match(prompt, /Bot Gila/);
     assert.match(prompt, /Nama panggilan yang disukai: Bima/);
+  });
+
+  it('builds a dedicated professional prompt for document generation', () => {
+    const prompt = buildDocumentSystemPrompt({
+      kind: 'pdf'
+    });
+
+    assert.match(prompt, /dokumen profesional/i);
+    assert.match(prompt, /Abaikan persona chatbot/i);
+    assert.match(prompt, /PDF/);
+    assert.doesNotMatch(prompt, /Bot Gila/);
+    assert.doesNotMatch(prompt, /Persona custom admin/);
   });
 });

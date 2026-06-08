@@ -2,7 +2,10 @@ import type { BotConfig, Message } from "@whatsapp-bot/shared";
 import type { Content } from "@google/generative-ai";
 import { appDb } from "../db/database.js";
 import { env } from "../config/env.js";
-import { buildSystemPrompt } from "./prompt-builder.js";
+import {
+    buildDocumentSystemPrompt,
+    buildSystemPrompt,
+} from "./prompt-builder.js";
 import { memory } from "./conversation-memory.js";
 import { processGeminiOutput } from "./output-processor.js";
 import {
@@ -136,7 +139,9 @@ export async function generateBotReply(
                 incrementDailyCounter();
                 return generateGeminiStructuredReply(
                     buildDocumentPlannerPrompt({
-                        systemPrompt,
+                        systemPrompt: buildDocumentSystemPrompt({
+                            kind: documentIntent.kind!,
+                        }),
                         message: input.message,
                         kind: documentIntent.kind!,
                     }),

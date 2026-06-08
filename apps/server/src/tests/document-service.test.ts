@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
+    buildDocumentPlannerPrompt,
     detectDocumentIntent,
     parseDocumentPlan,
     renderDocument,
@@ -41,6 +42,19 @@ describe("detectDocumentIntent", () => {
 });
 
 describe("document plans", () => {
+    it("builds a planner prompt around a dedicated document system prompt", () => {
+        const prompt = buildDocumentPlannerPrompt({
+            systemPrompt: "DOCUMENT_SYSTEM_PROMPT",
+            message: "buatkan proposal kerja sama",
+            kind: "docx",
+        });
+
+        assert.match(prompt, /DOCUMENT_SYSTEM_PROMPT/);
+        assert.match(prompt, /Format wajib: docx/i);
+        assert.match(prompt, /Balas HANYA JSON valid/i);
+        assert.match(prompt, /Instruksi user: buatkan proposal kerja sama/i);
+    });
+
     it("parses valid JSON and enforces the expected kind", () => {
         const plan = parseDocumentPlan(
             '{"kind":"docx","title":"Proposal","sections":[{"paragraphs":["Isi"]}]}',

@@ -4,6 +4,7 @@ import type { Content } from "@google/generative-ai";
 import {
     buildMultimodalPrompt,
     detectImageAnalysisMode,
+    detectMultimodalTask,
 } from "../ai/multimodal-service.js";
 
 describe("detectImageAnalysisMode", () => {
@@ -30,6 +31,33 @@ describe("detectImageAnalysisMode", () => {
     });
 });
 
+describe("detectMultimodalTask", () => {
+    it("detects text-to-image generation requests", () => {
+        assert.equal(
+            detectMultimodalTask("Ikmal buatkan gambar kucing lucu", false),
+            "image_generation",
+        );
+        assert.equal(
+            detectMultimodalTask("generate image robot futuristik", false),
+            "image_generation",
+        );
+    });
+
+    it("detects image editing requests when an attachment is present", () => {
+        assert.equal(
+            detectMultimodalTask("ubah foto ini jadi gaya anime", true),
+            "image_generation",
+        );
+    });
+
+    it("keeps normal image captions on the analysis path", () => {
+        assert.equal(
+            detectMultimodalTask("jelasin gambar ini", true),
+            "analysis",
+        );
+    });
+});
+
 describe("buildMultimodalPrompt", () => {
     it("includes system prompt, history, and user instruction", () => {
         const history: Content[] = [
@@ -48,5 +76,18 @@ describe("buildMultimodalPrompt", () => {
         assert.match(prompt, /User: halo/);
         assert.match(prompt, /Bot: halo juga/);
         assert.match(prompt, /Instruksi user: jelasin gambar ini/);
+    });
+
+    it("instructs Gemini to return an image for generation tasks", () => {
+        const prompt = buildMultimodalPrompt({
+            systemPrompt: "Kamu adalah Ikmal",
+            history: [],
+            message: "buatkan gambar kucing",
+            mode: "describe",
+            task: "image_generation",
+        });
+
+        assert.match(prompt, /Buat atau edit gambar/);
+        assert.match(prompt, /Kembalikan gambar/);
     });
 });

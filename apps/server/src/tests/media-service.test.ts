@@ -1,6 +1,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { createTextReply, getReplyPreview } from "../ai/reply-types.js";
+import {
+    createImageReply,
+    createTextReply,
+    getReplyPreview,
+} from "../ai/reply-types.js";
 import { mediaService } from "../services/mediaService.js";
 
 describe("mediaService", () => {
@@ -45,10 +49,9 @@ describe("mediaService", () => {
     });
 
     it("builds image replies from buffer", () => {
-        const reply = {
-            type: "image" as const,
+        const reply = createImageReply({
             imageBuffer: Buffer.from("hello"),
-        };
+        });
 
         const content = mediaService.toWhatsAppContent(reply);
         assert.deepEqual(content, {

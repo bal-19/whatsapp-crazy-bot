@@ -3,6 +3,7 @@ import makeWASocket, {
     Browsers,
     DisconnectReason,
     fetchLatestBaileysVersion,
+    normalizeMessageContent,
     type WASocket,
     type proto,
 } from "@whiskeysockets/baileys";
@@ -483,7 +484,7 @@ export class BotManager {
 }
 
 function extractText(message: proto.IWebMessageInfo): string | null {
-    const content = message.message;
+    const content = normalizeMessageContent(message.message);
     if (!content) return null;
 
     return (

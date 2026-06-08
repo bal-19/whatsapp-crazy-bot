@@ -6,6 +6,41 @@ export type ImageAnalysisMode =
     | "roast"
     | "meme_explain";
 
+export type MultimodalTask = "analysis" | "image_generation";
+
+export function detectMultimodalTask(
+    message: string,
+    hasImageAttachment: boolean,
+): MultimodalTask {
+    const lower = message.toLowerCase();
+
+    if (hasImageAttachment) {
+        if (
+            /\b(edit|ubah|ganti|tambah|hapus|remove|change|replace|modify|style|restyle)\b/.test(
+                lower,
+            ) ||
+            /\b(generate|buat|bikin|buatkan)\b.*\b(gambar|image|foto|photo|poster|ilustrasi)\b/.test(
+                lower,
+            )
+        ) {
+            return "image_generation";
+        }
+
+        return "analysis";
+    }
+
+    if (
+        /\b(generate|buat|bikin|buatkan|gambarkan|draw)\b.*\b(gambar|image|foto|photo|poster|ilustrasi|wallpaper|stiker)\b/.test(
+            lower,
+        ) ||
+        /\b(gambar|image)\b.*\b(generate|buat|bikin|buatkan)\b/.test(lower)
+    ) {
+        return "image_generation";
+    }
+
+    return "analysis";
+}
+
 export function detectImageAnalysisMode(message: string): ImageAnalysisMode {
     const lower = message.toLowerCase();
 
@@ -23,9 +58,13 @@ export function buildMultimodalPrompt(input: {
     history: Content[];
     message: string;
     mode: ImageAnalysisMode;
+    task?: MultimodalTask;
 }): string {
     const historyTranscript = serializeHistory(input.history);
-    const modeInstruction = getModeInstruction(input.mode);
+    const modeInstruction =
+        input.task === "image_generation"
+            ? getImageGenerationInstruction()
+            : getModeInstruction(input.mode);
 
     return [
         input.systemPrompt,
@@ -35,10 +74,20 @@ export function buildMultimodalPrompt(input: {
         "## Tugas Saat Ini",
         modeInstruction,
         `Instruksi user: ${input.message}`,
-        "Jawab dalam teks biasa saja.",
+        input.task === "image_generation"
+            ? "Kembalikan gambar jika permintaan user meminta pembuatan atau pengeditan gambar. Sertakan caption pendek bila berguna."
+            : "Jawab dalam teks biasa saja.",
     ]
         .filter(Boolean)
         .join("\n\n");
+}
+
+function getImageGenerationInstruction(): string {
+    return [
+        "Buat atau edit gambar sesuai instruksi user.",
+        "Pertahankan konteks penting dari gambar referensi bila user mengirim gambar.",
+        "Jangan hanya menjelaskan gambar jika user meminta dibuatkan atau dieditkan gambar.",
+    ].join(" ");
 }
 
 function getModeInstruction(mode: ImageAnalysisMode): string {

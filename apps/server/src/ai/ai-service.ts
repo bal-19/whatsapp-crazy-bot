@@ -7,6 +7,7 @@ import { memory } from "./conversation-memory.js";
 import { processGeminiOutput } from "./output-processor.js";
 import {
     GEMINI_IMAGE_MODEL,
+    type GeminiMultimodalReply,
     generateGeminiImageReply,
     generateGeminiReply,
 } from "./gemini-client.js";
@@ -18,8 +19,11 @@ import {
 import { ERROR_MESSAGES } from "./error-messages.js";
 import { logService } from "../services/logService.js";
 import { botConfigService } from "../services/botConfigService.js";
-import { createTextReply, type BotReply } from "./reply-types.js";
+import { createImageReply, createTextReply, type BotReply } from "./reply-types.js";
 import { personalMemoryService } from "../services/personalMemoryService.js";
+import { detectMultimodalTask } from "./multimodal-service.js";
+
+type GeminiReplyPayload = string | GeminiMultimodalReply;
 
 export interface GenerateReplyInput {
     contactId: string;
@@ -43,17 +47,22 @@ export async function generateBotReply(
     input: GenerateReplyInput,
 ): Promise<GenerateReplyResult> {
     if (isQueueOverloaded()) {
+        const isMultimodal = Boolean(input.imageAttachment);
         return {
             reply: createTextReply(ERROR_MESSAGES.queue_full),
             latencyMs: 0,
-            aiModel: input.imageAttachment
-                ? GEMINI_IMAGE_MODEL
-                : env.GEMINI_MODEL,
+            aiModel: isMultimodal ? GEMINI_IMAGE_MODEL : env.GEMINI_MODEL,
         };
     }
 
     const startedAt = Date.now();
     const memoryScopeKey = input.memoryScopeKey ?? input.contactId;
+    const multimodalTask = detectMultimodalTask(
+        input.message,
+        Boolean(input.imageAttachment),
+    );
+    const shouldUseImageModel =
+        Boolean(input.imageAttachment) || multimodalTask === "image_generation";
     // Prioritize passed config, otherwise load from cached BotConfigService
     const config = input.config ?? (await botConfigService.getConfig());
     await ensureMemoryHydrated(memoryScopeKey);
@@ -70,13 +79,14 @@ export async function generateBotReply(
     });
 
     try {
-        const raw = await geminiQueue.add(async () => {
+        const raw = (await geminiQueue.add(async () => {
             incrementDailyCounter();
-            if (input.imageAttachment) {
+            if (shouldUseImageModel) {
                 return generateGeminiImageReply({
                     systemPrompt,
                     history: memory.getHistory(memoryScopeKey),
                     message: input.message,
+                    task: multimodalTask,
                     image: input.imageAttachment,
                 });
             }
@@ -86,17 +96,37 @@ export async function generateBotReply(
                 memory.getHistory(memoryScopeKey),
                 input.message,
             );
-        });
+        })) as GeminiReplyPayload;
 
-        const reply = processGeminiOutput(raw ?? "");
+        if (typeof raw !== "string" && raw.image) {
+            const caption = processOptionalGeminiOutput(raw.text);
+            const memoryReply = caption || "[image reply]";
+            const latencyMs = Date.now() - startedAt;
+            memory.addTurn(memoryScopeKey, input.message, memoryReply);
+            return {
+                reply: createImageReply({
+                    imageBuffer: raw.image.buffer,
+                    mimeType: raw.image.mimeType,
+                    caption,
+                    auditMeta: {
+                        generatedBy: GEMINI_IMAGE_MODEL,
+                        multimodalTask,
+                    },
+                }),
+                latencyMs,
+                aiModel: GEMINI_IMAGE_MODEL,
+            };
+        }
+
+        const reply = processGeminiOutput(
+            typeof raw === "string" ? raw : raw.text,
+        );
         const latencyMs = Date.now() - startedAt;
         memory.addTurn(memoryScopeKey, input.message, reply);
         return {
             reply: createTextReply(reply),
             latencyMs,
-            aiModel: input.imageAttachment
-                ? GEMINI_IMAGE_MODEL
-                : env.GEMINI_MODEL,
+            aiModel: shouldUseImageModel ? GEMINI_IMAGE_MODEL : env.GEMINI_MODEL,
         };
     } catch (error) {
         const latencyMs = Date.now() - startedAt;
@@ -109,11 +139,15 @@ export async function generateBotReply(
         return {
             reply: createTextReply(classifyGeminiError(message)),
             latencyMs,
-            aiModel: input.imageAttachment
-                ? GEMINI_IMAGE_MODEL
-                : env.GEMINI_MODEL,
+            aiModel: shouldUseImageModel ? GEMINI_IMAGE_MODEL : env.GEMINI_MODEL,
         };
     }
+}
+
+function processOptionalGeminiOutput(value: string): string | undefined {
+    const trimmed = value.trim();
+    if (!trimmed) return undefined;
+    return processGeminiOutput(trimmed);
 }
 
 async function ensureMemoryHydrated(contactId: string): Promise<void> {

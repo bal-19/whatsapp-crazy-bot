@@ -7,7 +7,7 @@ export const ERROR_MESSAGES = {
     reset: "Dari nol ya mass",
     handoff: "Udahan dulu yaa sayang",
     command_list:
-        "Command yang bisa kamu pakai:\n/list - lihat daftar command\n/reset - reset percakapan scope ini\n/resetmemory - hapus memory personal scope ini\nKirim gambar + caption buat analisis gambar\nBilang 'bicara dengan manusia' untuk handoff",
+        "Command yang bisa kamu pakai:\n/list - lihat daftar command\n/reset - reset percakapan scope ini\n/resetmemory - hapus memory personal scope ini\nKirim gambar + caption buat analisis/edit gambar\nKetik 'buatkan gambar ...' buat generate image\nBilang 'bicara dengan manusia' untuk handoff",
     media_unavailable:
         "Maaf ya, aku belum berhasil baca gambarnya. Coba kirim ulang fotonya atau pakai caption yang lebih jelas ya.",
     media_too_large:

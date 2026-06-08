@@ -10,11 +10,20 @@ import { env } from "../config/env.js";
 import {
     buildMultimodalPrompt,
     detectImageAnalysisMode,
+    type MultimodalTask,
 } from "./multimodal-service.js";
 
 let model: GenerativeModel | null = null;
 let imageModel: GenerativeModel | null = null;
 export const GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image";
+
+export interface GeminiMultimodalReply {
+    text: string;
+    image?: {
+        buffer: Buffer;
+        mimeType: string;
+    };
+}
 
 const safetySettings: SafetySetting[] = [
     {
@@ -72,8 +81,7 @@ export function createGeminiImageModel(): GenerativeModel {
             temperature: 0.7,
             topP: 0.9,
             topK: 40,
-            maxOutputTokens: 512,
-            responseMimeType: "text/plain",
+            maxOutputTokens: 2048,
         },
         safetySettings,
     });
@@ -112,11 +120,12 @@ export async function generateGeminiImageReply(input: {
     systemPrompt: string;
     history: Content[];
     message: string;
-    image: {
+    task: MultimodalTask;
+    image?: {
         buffer: Buffer;
         mimeType: string;
     };
-}): Promise<string> {
+}): Promise<GeminiMultimodalReply> {
     imageModel ??= createGeminiImageModel();
 
     const prompt = buildMultimodalPrompt({
@@ -124,17 +133,55 @@ export async function generateGeminiImageReply(input: {
         history: input.history,
         message: input.message,
         mode: detectImageAnalysisMode(input.message),
+        task: input.task,
     });
 
-    const result = await imageModel.generateContent([
-        prompt,
-        {
-            inlineData: {
-                data: input.image.buffer.toString("base64"),
-                mimeType: input.image.mimeType,
-            },
-        },
-    ]);
+    const parts = [
+        { text: prompt },
+        input.image
+            ? {
+                  inlineData: {
+                      data: input.image.buffer.toString("base64"),
+                      mimeType: input.image.mimeType,
+                  },
+              }
+            : null,
+    ].filter((part): part is NonNullable<typeof part> => Boolean(part));
 
-    return result.response.text();
+    const result = await imageModel.generateContent(parts);
+    return extractMultimodalReply(result.response);
+}
+
+function extractMultimodalReply(response: {
+    candidates?: Array<{
+        content?: {
+            parts?: Array<{
+                text?: string;
+                inlineData?: {
+                    data?: string;
+                    mimeType?: string;
+                };
+            }>;
+        };
+    }>;
+}): GeminiMultimodalReply {
+    const parts = response.candidates?.[0]?.content?.parts ?? [];
+    const text = parts
+        .map((part) => part.text?.trim())
+        .filter((value): value is string => Boolean(value))
+        .join("\n")
+        .trim();
+    const imagePart = parts.find((part) => part.inlineData?.data)?.inlineData;
+
+    return {
+        text,
+        ...(imagePart?.data
+            ? {
+                  image: {
+                      buffer: Buffer.from(imagePart.data, "base64"),
+                      mimeType: imagePart.mimeType ?? "image/png",
+                  },
+              }
+            : {}),
+    };
 }

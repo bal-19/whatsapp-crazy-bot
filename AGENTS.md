@@ -39,20 +39,20 @@ Client Gemini sekarang dibangun dari [apps/server/src/ai/gemini-client.ts](/Volu
 Konfigurasi aktif:
 
 - Model: `env.GEMINI_MODEL`
-- Model analisis gambar statis: `gemini-3.1-flash-image`
+- Model multimodal gambar statis: `gemini-2.5-flash-image`
 - Default `.env.example`: `gemini-1.5-flash-latest`
 - `temperature`: `0.7`
 - `topP`: `0.9`
 - `topK`: `40`
-- `maxOutputTokens`: `512`
+- `maxOutputTokens`: `512` untuk text model, `2048` untuk image model
 - `responseMimeType`: `text/plain`
-- `safetySettings`: array kosong
+- `safetySettings`: di-set eksplisit ke `BLOCK_NONE` untuk kategori yang didukung SDK
 
 Catatan penting:
 
-- Dokumen lama menyebut threshold safety Gemini di-code; implementasi sekarang tidak memasang safety settings eksplisit.
 - Jika `GEMINI_API_KEY` tidak ada, pemanggilan Gemini akan gagal.
-- Untuk analisis gambar, jalur multimodal sekarang memakai model statis `gemini-3.1-flash-image` melalui `generateContent()` dengan image `inlineData`.
+- Untuk analisis, generate, dan edit gambar, jalur multimodal memakai model statis `gemini-2.5-flash-image` melalui `generateContent()` dengan image `inlineData` bila ada attachment.
+- Jalur multimodal membaca response part `text` dan `inlineData`; jika Gemini mengembalikan `inlineData`, runtime mengirimnya sebagai `BotReply` image ke WhatsApp.
 
 ## 3. Arsitektur Prompt Saat Ini
 
@@ -122,8 +122,9 @@ Bot mengabaikan:
 
 Catatan media:
 
-- image tanpa caption belum diproses di V1
+- image tanpa caption belum diproses di V1 karena pesan tanpa teks/caption masih difilter sebelum parser media
 - image dengan caption tetap mengikuti rules mention yang sama seperti text message
+- media yang dibungkus ephemeral/view-once dinormalisasi lewat Baileys sebelum text/caption dan image dibaca
 
 ### 5.3 Intent khusus
 
@@ -286,9 +287,11 @@ Komponen:
 Perilaku V1:
 
 - bot mendownload image dari WhatsApp bila pesan berupa `imageMessage`
-- caption user dipakai sebagai instruksi analisis
+- caption user dipakai sebagai instruksi analisis, edit, atau generate image
 - mode analisis dasar yang ada: `describe`, `caption`, `roast`, `meme_explain`
-- hasil akhir tetap dikirim sebagai reply text
+- request analisis gambar tetap dikirim sebagai reply text
+- request generate/edit gambar seperti `buatkan gambar ...`, `generate image ...`, atau `ubah foto ini ...` masuk ke jalur image generation
+- bila Gemini mengembalikan image part, bot mengirim image buffer ke WhatsApp dengan caption pendek bila tersedia
 - image yang terlalu besar akan memakai fallback error media
 
 ## 9. Rate Limiting dan Queue

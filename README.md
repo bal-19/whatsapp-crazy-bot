@@ -11,7 +11,7 @@ Monorepo untuk bot WhatsApp berbasis Google Gemini dengan dashboard admin realti
 - Dashboard admin untuk monitoring bot, percakapan, konfigurasi, analytics, logs, groups, roles, dan users
 - Realtime updates via Socket.IO
 - Penyimpanan data di Supabase untuk contact, conversation scope, messages, bot settings, auth state, roles, users, dan logs
-- Dukungan analisis gambar dasar untuk pesan image dengan caption
+- Dukungan analisis, generate, dan edit gambar untuk pesan yang sesuai
 
 ## Ringkasan Perilaku Bot
 
@@ -19,6 +19,7 @@ Monorepo untuk bot WhatsApp berbasis Google Gemini dengan dashboard admin realti
 - Untuk chat personal, memory percakapan berjalan per contact.
 - Untuk chat grup, history tetap tersimpan per member scope, tetapi memory AI dibagi per grup.
 - Bot mendukung command reset percakapan, reset personal memory, daftar command, dan handoff ke manusia.
+- Permintaan seperti `buatkan gambar ...` atau `ubah foto ini ...` memakai jalur Gemini image dan dapat mengirim balasan berupa image.
 - Output balasan dibersihkan dulu sebelum dikirim ke WhatsApp.
 
 Detail perilaku runtime yang lebih lengkap ada di [AGENTS.md](/Volumes/Iqbal/websites/whatsapp-bot/AGENTS.md).

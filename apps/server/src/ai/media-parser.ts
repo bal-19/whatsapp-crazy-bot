@@ -1,5 +1,6 @@
 import {
     downloadMediaMessage,
+    normalizeMessageContent,
     type WASocket,
     type proto,
 } from "@whiskeysockets/baileys";
@@ -18,7 +19,7 @@ export async function parseInboundImageAttachment(
     sock: WASocket,
     message: proto.IWebMessageInfo,
 ): Promise<InboundImageAttachment | null> {
-    const imageMessage = message.message?.imageMessage;
+    const imageMessage = normalizeMessageContent(message.message)?.imageMessage;
     if (!imageMessage) return null;
 
     const fileLength = toNumber(imageMessage.fileLength);

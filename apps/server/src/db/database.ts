@@ -98,6 +98,7 @@ interface MessageRow {
     ai_model: string | null;
     tokens_used: number | null;
     latency_ms: number | null;
+    reply_to_message_id: string | null;
     raw_payload: Record<string, unknown> | null;
     message_timestamp: string;
     created_at: string;
@@ -193,6 +194,7 @@ interface DatabaseAdapter {
         ai_model?: string | null;
         tokens_used?: number | null;
         latency_ms?: number | null;
+        reply_to_message_id?: string | null;
         raw_payload?: Record<string, unknown> | null;
         message_timestamp?: string | null;
     }): Promise<Message>;
@@ -565,6 +567,7 @@ class InMemoryDatabase implements DatabaseAdapter {
         ai_model?: string | null;
         tokens_used?: number | null;
         latency_ms?: number | null;
+        reply_to_message_id?: string | null;
         raw_payload?: Record<string, unknown> | null;
         message_timestamp?: string | null;
     }): Promise<Message> {
@@ -581,6 +584,7 @@ class InMemoryDatabase implements DatabaseAdapter {
             ai_model: input.ai_model ?? null,
             tokens_used: input.tokens_used ?? null,
             latency_ms: input.latency_ms ?? null,
+            reply_to_message_id: input.reply_to_message_id ?? null,
             raw_payload: input.raw_payload ?? null,
             message_timestamp: input.message_timestamp ?? now,
             created_at: now,
@@ -1097,6 +1101,7 @@ class SupabaseDatabase implements DatabaseAdapter {
         ai_model?: string | null;
         tokens_used?: number | null;
         latency_ms?: number | null;
+        reply_to_message_id?: string | null;
         raw_payload?: Record<string, unknown> | null;
         message_timestamp?: string | null;
     }): Promise<Message> {
@@ -1112,6 +1117,7 @@ class SupabaseDatabase implements DatabaseAdapter {
             ai_model: input.ai_model ?? null,
             tokens_used: input.tokens_used ?? null,
             latency_ms: input.latency_ms ?? null,
+            reply_to_message_id: input.reply_to_message_id ?? null,
             raw_payload: input.raw_payload ?? null,
             message_timestamp: input.message_timestamp ?? new Date().toISOString(),
         };
@@ -1841,6 +1847,7 @@ function mapMessageRow(row: MessageRow, contactJid: string): Message {
         ai_model: row.ai_model,
         tokens_used: row.tokens_used,
         latency_ms: row.latency_ms,
+        reply_to_message_id: row.reply_to_message_id,
         message_timestamp: row.message_timestamp,
         created_at: row.created_at,
     };

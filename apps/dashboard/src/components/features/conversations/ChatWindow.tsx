@@ -36,8 +36,8 @@ export function ChatWindow({ title, subtitle, messages, isGroup = false, senderN
                         </div>
                     ) : (
                         <>
-                            {messages.map((message, index) => {
-                                const quoted = message.direction === 'outbound' ? findPreviousInbound(messages, index) : null;
+                            {messages.map((message) => {
+                                const quoted = message.reply_to_message_id ? findMessageById(messages, message.reply_to_message_id) : null;
                                 const senderName = senderNames[message.contact_id] ?? null;
                                 const quotedSenderName = quoted ? senderNames[quoted.contact_id] ?? 'User' : null;
                                 return (
@@ -61,11 +61,6 @@ export function ChatWindow({ title, subtitle, messages, isGroup = false, senderN
     );
 }
 
-function findPreviousInbound(messages: Message[], currentIndex: number): Message | null {
-    for (let index = currentIndex - 1; index >= 0; index--) {
-        const message = messages[index];
-        if (message?.direction === 'inbound') return message;
-    }
-
-    return null;
+function findMessageById(messages: Message[], messageId: string): Message | null {
+    return messages.find((message) => message.id === messageId) ?? null;
 }

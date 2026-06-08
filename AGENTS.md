@@ -270,6 +270,8 @@ Aturan runtime:
 - text reply tetap dikirim sebagai `{ text: ... }`
 - image reply bisa dikirim dari `imageUrl` atau `imageBuffer`
 - preview outbound yang disimpan di database tetap memakai text utama atau caption
+- outbound reply menyimpan `reply_to_message_id` dari WhatsApp message id inbound yang dibalas
+- dashboard conversation memakai `reply_to_message_id` sebagai acuan quoted preview, bukan waktu atau urutan pesan
 - metadata media outbound disimpan ke `raw_payload`
 
 ## 8.2 Analisis Gambar V1
@@ -367,6 +369,7 @@ Event penting yang muncul di kode:
 
 Metadata `audit_reply_sent` sekarang juga dapat memuat:
 
+- `replyToMessageId`
 - `replyType`
 - `mimeType`
 - `mediaSource`

@@ -429,6 +429,7 @@ export class BotManager {
         const replyContent = mediaService.toWhatsAppContent(reply);
         const rawPayload = mediaService.toStoragePayload(reply);
         const auditSummary = mediaService.toAuditSummary(reply);
+        const replyToMessageId = quotedMessage?.key.id ?? null;
 
         await this.sock?.sendMessage(
             scope.deliveryJid,
@@ -443,6 +444,7 @@ export class BotManager {
             body,
             ai_model: aiModel,
             latency_ms: latencyMs,
+            reply_to_message_id: replyToMessageId,
             raw_payload: rawPayload,
             message_timestamp: new Date().toISOString(),
         });
@@ -452,6 +454,7 @@ export class BotManager {
             ...toConversationScopeLogMeta(scope),
             aiModel,
             latencyMs,
+            replyToMessageId,
             ...auditSummary,
             outputLength: body.length,
         });

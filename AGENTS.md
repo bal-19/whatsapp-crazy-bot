@@ -39,7 +39,8 @@ Client Gemini sekarang dibangun dari [apps/server/src/ai/gemini-client.ts](/Volu
 Konfigurasi aktif:
 
 - Model: `env.GEMINI_MODEL`
-- Model multimodal gambar statis: `gemini-2.5-flash-image`
+- Model analisis media: `env.GEMINI_MODEL`
+- Model generate/edit gambar statis: `gemini-2.5-flash-preview-image`
 - Default `.env.example`: `gemini-1.5-flash-latest`
 - `temperature`: `0.7`
 - `topP`: `0.9`
@@ -51,7 +52,8 @@ Konfigurasi aktif:
 Catatan penting:
 
 - Jika `GEMINI_API_KEY` tidak ada, pemanggilan Gemini akan gagal.
-- Untuk analisis, generate, dan edit gambar, jalur multimodal memakai model statis `gemini-2.5-flash-image` melalui `generateContent()` dengan image `inlineData` bila ada attachment.
+- Untuk analisis media, jalur multimodal memakai `env.GEMINI_MODEL` melalui `generateContent()` dengan image `inlineData`.
+- Model statis `gemini-2.5-flash-preview-image` hanya dipakai untuk generate atau edit gambar.
 - Jalur multimodal membaca response part `text` dan `inlineData`; jika Gemini mengembalikan `inlineData`, runtime mengirimnya sebagai `BotReply` image ke WhatsApp.
 
 ## 3. Arsitektur Prompt Saat Ini
@@ -289,7 +291,7 @@ Perilaku V1:
 - bot mendownload image dari WhatsApp bila pesan berupa `imageMessage`
 - caption user dipakai sebagai instruksi analisis, edit, atau generate image
 - mode analisis dasar yang ada: `describe`, `caption`, `roast`, `meme_explain`
-- request analisis gambar tetap dikirim sebagai reply text
+- request analisis gambar memakai model `env.GEMINI_MODEL` dan tetap dikirim sebagai reply text
 - request generate/edit gambar seperti `buatkan gambar ...`, `generate image ...`, atau `ubah foto ini ...` masuk ke jalur image generation
 - bila Gemini mengembalikan image part, bot mengirim image buffer ke WhatsApp dengan caption pendek bila tersedia
 - image yang terlalu besar akan memakai fallback error media

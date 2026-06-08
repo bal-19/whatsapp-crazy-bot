@@ -116,6 +116,38 @@ export async function generateGeminiReply(
     return result.response.text();
 }
 
+export async function generateGeminiMediaAnalysis(input: {
+    systemPrompt: string;
+    history: Content[];
+    message: string;
+    image: {
+        buffer: Buffer;
+        mimeType: string;
+    };
+}): Promise<string> {
+    model ??= createGeminiModel();
+
+    const prompt = buildMultimodalPrompt({
+        systemPrompt: input.systemPrompt,
+        history: input.history,
+        message: input.message,
+        mode: detectImageAnalysisMode(input.message),
+        task: "analysis",
+    });
+
+    const result = await model.generateContent([
+        { text: prompt },
+        {
+            inlineData: {
+                data: input.image.buffer.toString("base64"),
+                mimeType: input.image.mimeType,
+            },
+        },
+    ]);
+
+    return result.response.text();
+}
+
 export async function generateGeminiImageReply(input: {
     systemPrompt: string;
     history: Content[];

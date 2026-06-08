@@ -1,32 +1,38 @@
 # WhatsApp AI Bot
 
-Monorepo untuk bot WhatsApp berbasis Gemini dengan dashboard admin realtime. Project ini terdiri dari bot engine Node.js, dashboard React, package shared types, dan persistence di Supabase.
+Monorepo untuk bot WhatsApp berbasis Google Gemini dengan dashboard admin realtime. Project ini menggabungkan bot engine Node.js, dashboard React, shared types, dan persistence di Supabase.
 
 ![Preview WhatsApp AI Bot](./Whatsapp%20Mockup.png)
 
-## Ringkasan
-
-Fitur yang sudah ada di repo saat ini:
+## Apa Yang Ada di Project Ini
 
 - Bot WhatsApp berbasis `@whiskeysockets/baileys`
-- Balasan AI menggunakan Google Gemini dengan memory percakapan per kontak
-- Trigger balasan berbasis mention nama bot atau command seperti `/reset`
-- Dashboard admin dengan login JWT
-- Monitoring status bot, uptime, queue Gemini, dan QR login WhatsApp
-- Halaman percakapan, contacts, konfigurasi bot, analytics, dan log sistem
-- Penyimpanan data ke Supabase: contacts, messages, bot settings, logs, admin users, dan WhatsApp auth state
+- Balasan AI via Google Gemini dengan memory percakapan dan personal memory ringan
+- Dashboard admin untuk monitoring bot, percakapan, konfigurasi, analytics, logs, groups, roles, dan users
 - Realtime updates via Socket.IO
+- Penyimpanan data di Supabase untuk contact, conversation scope, messages, bot settings, auth state, roles, users, dan logs
+- Dukungan analisis gambar dasar untuk pesan image dengan caption
 
-## Arsitektur Repo
+## Ringkasan Perilaku Bot
+
+- Bot tidak membalas semua pesan. Secara default bot merespons jika nama bot disebut atau ada command seperti `/reset`.
+- Untuk chat personal, memory percakapan berjalan per contact.
+- Untuk chat grup, history tetap tersimpan per member scope, tetapi memory AI dibagi per grup.
+- Bot mendukung command reset percakapan, reset personal memory, daftar command, dan handoff ke manusia.
+- Output balasan dibersihkan dulu sebelum dikirim ke WhatsApp.
+
+Detail perilaku runtime yang lebih lengkap ada di [AGENTS.md](/Volumes/Iqbal/websites/whatsapp-bot/AGENTS.md).
+
+## Struktur Repo
 
 ```text
 apps/
-  dashboard/   React + Vite + Tailwind + Zustand
-  server/      Express + Baileys + Gemini + Socket.IO
+  dashboard/   Dashboard admin React + Vite
+  server/      API, bot runtime, Gemini integration, Socket.IO
 packages/
   shared/      Shared types untuk server dan dashboard
 supabase/
-  migrations/  Skema database
+  migrations/  Skema dan evolusi database
 ```
 
 ## Tech Stack
@@ -40,59 +46,84 @@ supabase/
 - Realtime: Socket.IO
 - Logging: Pino
 
-## Flow Singkat
+## Cara Kerja Singkat
 
-1. Server start lalu menginisialisasi bot manager dan Socket.IO.
-2. Baileys membuka sesi WhatsApp, menampilkan QR jika auth belum ada.
+1. Server menjalankan bot manager, API Express, dan Socket.IO.
+2. Baileys membuka sesi WhatsApp dan menghasilkan QR jika auth belum ada.
 3. Pesan masuk divalidasi, dicek apakah bot perlu merespons, lalu disimpan ke database.
-4. `generateBotReply()` membangun system prompt dari config aktif, memuat history kontak, lalu memanggil Gemini lewat queue rate-limited.
-5. Balasan dibersihkan untuk format WhatsApp, dikirim ke user, lalu disimpan sebagai outbound message.
-6. Dashboard mengambil data via REST API dan menerima update status/message via socket.
-
-## Fitur Backend
-
-- Login admin lewat `admin_users` di database
-- CRUD contacts
-- List dan detail conversations
-- Clear history percakapan per contact
-- Read/update bot config
-- Prompt tester dari dashboard
-- Analytics summary
-- System logs
-- Restart bot
-- Reset auth WhatsApp dan generate QR baru
+4. Server membangun prompt dari config aktif, history, dan memory yang relevan.
+5. Request ke Gemini masuk lewat queue rate-limited.
+6. Output AI dibersihkan, dikirim ke WhatsApp, lalu dicatat sebagai outbound message.
+7. Dashboard mengambil data via REST API dan menerima update realtime via socket.
 
 ## Fitur Dashboard
 
 - `/login`
+  Login berbasis user database dan permission.
 - `/`
-  Menampilkan status bot, pesan hari ini, queue Gemini, avg response time, chart volume pesan, preview percakapan terbaru, dan kartu QR WhatsApp
+  Status bot, uptime, queue Gemini, pesan hari ini, analytics ringkas, dan QR WhatsApp.
 - `/conversations`
-  Menampilkan daftar percakapan dan detail chat window
+  Daftar percakapan dan tampilan chat detail.
 - `/contacts`
-  CRUD manual untuk tabel contacts
+  CRUD contact.
+- `/groups`
+  Simpan dan rapikan metadata nama grup WhatsApp.
 - `/config`
-  Edit `bot_name`, `system_prompt`, `tone_style`, `is_active`, `ignore_groups`, plus prompt tester
+  Ubah `bot_name`, `system_prompt`, `tone_style`, `is_active`, `ignore_groups`, plus test prompt.
 - `/analytics`
-  Ringkasan metrik harian
+  Ringkasan metrik harian.
 - `/logs`
-  Filter log berdasarkan level dan pencarian teks
+  Monitoring log sistem.
+- `/users`
+  Kelola user dashboard.
+- `/roles`
+  Kelola role dan permission.
 
-## Persona Bot Saat Ini
+## API Yang Tersedia
 
-Implementasi saat ini tidak lagi memakai default "Bot Gila" satir seperti dokumen lama. Default config di kode menggunakan:
+Base path: `/api/v1`
 
-- `bot_name`: `Ikmal`
-- `tone_style`: `helpful`
-- persona dasar: asisten helpful dengan gaya Gen Z
+Public:
 
-Selain itu, `buildSystemPrompt()` saat ini juga menyuntikkan instruksi gaya bicara romantis/manja. Jadi kalau ingin perilaku lain, ubah dari dashboard atau ubah implementasi prompt builder di server.
+- `POST /auth/login`
+
+Protected:
+
+- `GET /auth/me`
+- `GET /status`
+- `GET /contacts`
+- `GET /contacts/:contactId`
+- `POST /contacts`
+- `PUT /contacts/:contactId`
+- `DELETE /contacts/:contactId`
+- `GET /groups`
+- `POST /groups`
+- `DELETE /groups/:groupJid`
+- `GET /conversations`
+- `GET /conversations/:contactId`
+- `DELETE /conversations/:contactId/history`
+- `GET /config`
+- `PUT /config`
+- `POST /test-prompt`
+- `GET /analytics/summary`
+- `GET /logs`
+- `POST /maintenance/purge-operational-data`
+- `POST /bot/restart`
+- `POST /bot/reset-auth`
+- `GET /roles`
+- `POST /roles`
+- `PUT /roles/:roleId`
+- `DELETE /roles/:roleId`
+- `GET /users`
+- `POST /users`
+- `PUT /users/:userId`
+- `DELETE /users/:userId`
 
 ## Environment Variables
 
-Contoh ada di [.env.example](/Volumes/Iqbal/websites/whatsapp-bot/.env.example:1).
+Contoh lengkap ada di [.env.example](/Volumes/Iqbal/websites/whatsapp-bot/.env.example:1).
 
-Yang wajib untuk menjalankan server non-test:
+Minimal yang perlu diisi untuk server non-test:
 
 ```env
 NODE_ENV=development
@@ -116,10 +147,11 @@ WA_QR_TIMEOUT_MS=120000
 
 Catatan:
 
-- `DASHBOARD_USERNAME` dan `DASHBOARD_PASSWORD` masih ada di `.env.example`, tapi auth dashboard yang aktif sekarang memakai tabel `admin_users`.
+- `DASHBOARD_USERNAME` dan `DASHBOARD_PASSWORD` masih ada di `.env.example`, tetapi auth dashboard aktif sekarang memakai tabel `users`.
+- Jika `GEMINI_API_KEY` kosong, request ke Gemini akan gagal.
 - Jika `SUPABASE_URL` atau `SUPABASE_SERVICE_ROLE_KEY` kosong, server non-test akan gagal start.
 
-## Setup
+## Setup Lokal
 
 ### 1. Install dependency
 
@@ -133,17 +165,24 @@ npm install
 cp .env.example .env
 ```
 
-Lalu isi semua value yang dibutuhkan.
+Lalu isi value yang dibutuhkan.
 
-### 3. Jalankan migrasi Supabase
+### 3. Jalankan seluruh migration Supabase
 
-Urutan migrasi yang ada:
+Urutan migration saat ini:
 
-- [supabase/migrations/202606030001_initial_schema.sql](/Volumes/Iqbal/websites/whatsapp-bot/supabase/migrations/202606030001_initial_schema.sql:1)
-- [supabase/migrations/202606030002_create_admin_users_table.sql](/Volumes/Iqbal/websites/whatsapp-bot/supabase/migrations/202606030002_create_admin_users_table.sql:1)
-- [supabase/migrations/202606040001_add_whatsapp_auth_state.sql](/Volumes/Iqbal/websites/whatsapp-bot/supabase/migrations/202606040001_add_whatsapp_auth_state.sql:1)
+- [202606030001_initial_schema.sql](/Volumes/Iqbal/websites/whatsapp-bot/supabase/migrations/202606030001_initial_schema.sql)
+- [202606030002_create_admin_users_table.sql](/Volumes/Iqbal/websites/whatsapp-bot/supabase/migrations/202606030002_create_admin_users_table.sql)
+- [202606040001_add_whatsapp_auth_state.sql](/Volumes/Iqbal/websites/whatsapp-bot/supabase/migrations/202606040001_add_whatsapp_auth_state.sql)
+- [202606040002_add_contact_memories.sql](/Volumes/Iqbal/websites/whatsapp-bot/supabase/migrations/202606040002_add_contact_memories.sql)
+- [202606040003_create_whatsapp_groups.sql](/Volumes/Iqbal/websites/whatsapp-bot/supabase/migrations/202606040003_create_whatsapp_groups.sql)
+- [202606050001_split_contacts_and_conversation_scopes.sql](/Volumes/Iqbal/websites/whatsapp-bot/supabase/migrations/202606050001_split_contacts_and_conversation_scopes.sql)
+- [202606050002_create_roles_and_users.sql](/Volumes/Iqbal/websites/whatsapp-bot/supabase/migrations/202606050002_create_roles_and_users.sql)
+- [202606050003_seed_admin_full_access.sql](/Volumes/Iqbal/websites/whatsapp-bot/supabase/migrations/202606050003_seed_admin_full_access.sql)
+- [202606050004_add_message_timestamp.sql](/Volumes/Iqbal/websites/whatsapp-bot/supabase/migrations/202606050004_add_message_timestamp.sql)
+- [202606080001_add_message_reply_reference.sql](/Volumes/Iqbal/websites/whatsapp-bot/supabase/migrations/202606080001_add_message_reply_reference.sql)
 
-### 4. Jalankan server dan dashboard
+### 4. Jalankan aplikasi
 
 Server:
 
@@ -157,15 +196,13 @@ Dashboard:
 npm run dev:dashboard
 ```
 
-Atau jalankan server dari root:
+Atau dari root:
 
 ```bash
 npm run dev
 ```
 
-## Scripts
-
-Root:
+## Scripts Penting
 
 ```bash
 npm run dev
@@ -174,60 +211,48 @@ npm run dev:dashboard
 npm run build
 npm run build:server
 npm run build:dashboard
+npm run build:shared
 npm run test
 npm run lint
 ```
 
-## API Ringkas
+## Database Singkat
 
-Base path: `/api/v1`
-
-Public:
-
-- `POST /auth/login`
-
-Protected:
-
-- `GET /status`
-- `GET /contacts`
-- `GET /contacts/:contactId`
-- `POST /contacts`
-- `PUT /contacts/:contactId`
-- `DELETE /contacts/:contactId`
-- `GET /conversations`
-- `GET /conversations/:contactId`
-- `DELETE /conversations/:contactId/history`
-- `GET /config`
-- `PUT /config`
-- `POST /test-prompt`
-- `GET /analytics/summary`
-- `GET /logs`
-- `POST /bot/restart`
-- `POST /bot/reset-auth`
-
-## Database
-
-Tabel utama:
+Tabel yang paling penting:
 
 - `contacts`
+- `conversation_scopes`
 - `messages`
+- `contact_memories`
 - `bot_settings`
+- `whatsapp_groups`
+- `users`
+- `roles`
 - `system_logs`
-- `admin_users`
 - `whatsapp_auth_state`
 
 View:
 
 - `conversation_summaries`
 
+Catatan:
+
+- `messages` sekarang menyimpan `message_timestamp` dan `reply_to_message_id`.
+- `reply_to_message_id` dipakai dashboard untuk menampilkan quoted reply dengan acuan yang eksplisit, bukan menebak dari waktu.
+
 ## Testing
 
-Test server yang ada saat ini mencakup:
+Test server yang tersedia saat ini mencakup:
 
 - prompt builder
 - input sanitizer
 - output processor
 - intent detector
+- database
+- conversation scope
+- personal memory
+- multimodal service
+- media service
 - API
 - WhatsApp auth state
 
@@ -237,9 +262,19 @@ Jalankan:
 npm run test
 ```
 
+## Seed Login Awal
+
+Jika seluruh migration terbaru dijalankan, user awal yang disediakan adalah:
+
+- username: `admin`
+- password: `Admin@123`
+
+Password ini sebaiknya langsung diganti setelah setup awal.
+
 ## Hal Yang Perlu Diperhatikan
 
-- Bot hanya merespons jika nama bot disebut, atau ada command khusus seperti `/reset`.
-- `ignore_groups` default database migration awal adalah `true`, tetapi default in-memory config di kode adalah `false`; perilaku final mengikuti data yang tersimpan.
-- Safety settings Gemini saat ini kosong di implementasi client, jadi pembatasan konten lebih banyak bergantung pada prompt dan error handling aplikasi.
-- Auth dashboard default dibuat lewat migrasi: username `admin`, password `admin123`. Ganti segera setelah setup awal.
+- Default persona bot saat ini adalah `Ikmal` dengan tone `helpful`, tetapi prompt helper yang aktif juga menyuntikkan nuansa romantis/manja.
+- `ignore_groups` default di migration awal berbeda dengan default in-memory config; perilaku final mengikuti data di database.
+- Safety settings Gemini saat ini tidak diisi eksplisit di client.
+- Image tanpa caption belum diproses di alur analisis V1.
+- Folder `dist`, `dev-dist`, dan artefak lokal lain mungkin sudah ada di workspace; fokus pengembangan tetap sebaiknya ke file sumber di `src/`.

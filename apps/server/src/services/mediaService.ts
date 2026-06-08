@@ -14,6 +14,15 @@ export const mediaService = {
             return { text: reply.text };
         }
 
+        if (reply.type === "document") {
+            return {
+                document: reply.documentBuffer,
+                fileName: reply.fileName,
+                mimetype: reply.mimeType,
+                caption: reply.caption,
+            };
+        }
+
         if (reply.imageUrl) {
             assertHttpUrl(reply.imageUrl);
             return {
@@ -37,6 +46,18 @@ export const mediaService = {
     toStoragePayload(reply: BotReply): Record<string, unknown> | null {
         if (reply.type === "text") return null;
 
+        if (reply.type === "document") {
+            return {
+                reply_type: reply.type,
+                document_kind: reply.documentKind,
+                file_name: reply.fileName,
+                mime_type: reply.mimeType,
+                has_buffer: true,
+                caption: reply.caption ?? null,
+                ...(reply.auditMeta ?? {}),
+            };
+        }
+
         return {
             reply_type: reply.type,
             media_url: reply.imageUrl ?? null,
@@ -50,6 +71,15 @@ export const mediaService = {
     toAuditSummary(reply: BotReply): ReplyAuditSummary {
         if (reply.type === "text") {
             return { replyType: "text" };
+        }
+
+        if (reply.type === "document") {
+            return {
+                replyType: "document",
+                mimeType: reply.mimeType,
+                mediaSource: "buffer",
+                hasCaption: Boolean(reply.caption),
+            };
         }
 
         return {

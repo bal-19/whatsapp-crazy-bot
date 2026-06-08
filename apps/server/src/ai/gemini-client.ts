@@ -15,6 +15,7 @@ import {
 
 let model: GenerativeModel | null = null;
 let imageModel: GenerativeModel | null = null;
+let structuredModel: GenerativeModel | null = null;
 export const GEMINI_IMAGE_MODEL = "gemini-2.5-flash-preview-image";
 
 export interface GeminiMultimodalReply {
@@ -87,6 +88,24 @@ export function createGeminiImageModel(): GenerativeModel {
     });
 }
 
+function createGeminiStructuredModel(): GenerativeModel {
+    if (!env.GEMINI_API_KEY) {
+        throw new Error("GEMINI_API_KEY is required to call Gemini");
+    }
+
+    const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
+    return genAI.getGenerativeModel({
+        model: env.GEMINI_MODEL,
+        generationConfig: {
+            temperature: 0.3,
+            topP: 0.9,
+            maxOutputTokens: 4096,
+            responseMimeType: "application/json",
+        },
+        safetySettings,
+    });
+}
+
 export async function generateGeminiReply(
     systemPrompt: string,
     history: Content[],
@@ -113,6 +132,12 @@ export async function generateGeminiReply(
     });
 
     const result = await chat.sendMessage(message);
+    return result.response.text();
+}
+
+export async function generateGeminiStructuredReply(prompt: string): Promise<string> {
+    structuredModel ??= createGeminiStructuredModel();
+    const result = await structuredModel.generateContent(prompt);
     return result.response.text();
 }
 

@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
+    createDocumentReply,
     createImageReply,
     createTextReply,
     getReplyPreview,
@@ -78,5 +79,37 @@ describe("mediaService", () => {
             () => mediaService.toWhatsAppContent(reply),
             /http or https/,
         );
+    });
+
+    it("builds document replies from buffer", () => {
+        const reply = createDocumentReply({
+            documentBuffer: Buffer.from("document"),
+            fileName: "laporan.pdf",
+            mimeType: "application/pdf",
+            documentKind: "pdf",
+            caption: "Ini laporannya",
+        });
+
+        assert.deepEqual(mediaService.toWhatsAppContent(reply), {
+            document: Buffer.from("document"),
+            fileName: "laporan.pdf",
+            mimetype: "application/pdf",
+            caption: "Ini laporannya",
+        });
+        assert.deepEqual(mediaService.toStoragePayload(reply), {
+            reply_type: "document",
+            document_kind: "pdf",
+            file_name: "laporan.pdf",
+            mime_type: "application/pdf",
+            has_buffer: true,
+            caption: "Ini laporannya",
+        });
+        assert.deepEqual(mediaService.toAuditSummary(reply), {
+            replyType: "document",
+            mimeType: "application/pdf",
+            mediaSource: "buffer",
+            hasCaption: true,
+        });
+        assert.equal(getReplyPreview(reply), "Ini laporannya");
     });
 });

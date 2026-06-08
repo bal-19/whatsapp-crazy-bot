@@ -11,6 +11,7 @@ import {
     generateGeminiImageReply,
     generateGeminiMediaAnalysis,
     generateGeminiReply,
+    generateGeminiStructuredReply,
 } from "./gemini-client.js";
 import {
     geminiQueue,
@@ -20,9 +21,20 @@ import {
 import { ERROR_MESSAGES } from "./error-messages.js";
 import { logService } from "../services/logService.js";
 import { botConfigService } from "../services/botConfigService.js";
-import { createImageReply, createTextReply, type BotReply } from "./reply-types.js";
+import {
+    createDocumentReply,
+    createImageReply,
+    createTextReply,
+    type BotReply,
+} from "./reply-types.js";
 import { personalMemoryService } from "../services/personalMemoryService.js";
 import { detectMultimodalTask } from "./multimodal-service.js";
+import {
+    buildDocumentPlannerPrompt,
+    detectDocumentIntent,
+    parseDocumentPlan,
+    renderDocument,
+} from "../documents/document-service.js";
 
 type GeminiReplyPayload = string | GeminiMultimodalReply;
 
@@ -48,12 +60,23 @@ export async function generateBotReply(
     input: GenerateReplyInput,
 ): Promise<GenerateReplyResult> {
     const hasImageAttachment = Boolean(input.imageAttachment);
+    const documentIntent = detectDocumentIntent(input.message);
     const multimodalTask = detectMultimodalTask(
         input.message,
         hasImageAttachment,
     );
     const shouldUseImageGenerationModel =
         multimodalTask === "image_generation";
+
+    if (documentIntent.multipleFormats) {
+        return {
+            reply: createTextReply(
+                "Aku hanya bisa membuat satu file per permintaan. Pilih salah satu format: PDF, DOCX, atau XLSX.",
+            ),
+            latencyMs: 0,
+            aiModel: env.GEMINI_MODEL,
+        };
+    }
 
     if (isQueueOverloaded()) {
         return {
@@ -83,6 +106,49 @@ export async function generateBotReply(
     });
 
     try {
+        if (documentIntent.requested && documentIntent.kind) {
+            logService.write("info", "audit_document_requested", {
+                contactId: input.contactId,
+                documentKind: documentIntent.kind,
+            });
+            const rawPlan = (await geminiQueue.add(async () => {
+                incrementDailyCounter();
+                return generateGeminiStructuredReply(
+                    buildDocumentPlannerPrompt({
+                        systemPrompt,
+                        message: input.message,
+                        kind: documentIntent.kind!,
+                    }),
+                );
+            })) as string;
+            const plan = parseDocumentPlan(rawPlan, documentIntent.kind);
+            const document = await renderDocument(plan);
+            const latencyMs = Date.now() - startedAt;
+            const preview = `[document: ${document.fileName}]`;
+            memory.addTurn(memoryScopeKey, input.message, preview);
+            logService.write("info", "audit_document_rendered", {
+                contactId: input.contactId,
+                documentKind: document.kind,
+                fileName: document.fileName,
+                sizeBytes: document.buffer.length,
+            });
+            return {
+                reply: createDocumentReply({
+                    documentBuffer: document.buffer,
+                    fileName: document.fileName,
+                    mimeType: document.mimeType,
+                    documentKind: document.kind,
+                    caption: `File ${document.fileName} sudah dibuat.`,
+                    auditMeta: {
+                        generatedBy: env.GEMINI_MODEL,
+                        documentTask: "generation",
+                    },
+                }),
+                latencyMs,
+                aiModel: env.GEMINI_MODEL,
+            };
+        }
+
         const raw = (await geminiQueue.add(async () => {
             incrementDailyCounter();
             if (shouldUseImageGenerationModel) {
@@ -150,15 +216,29 @@ export async function generateBotReply(
         logService.write("error", "gemini_error", {
             contactId: input.contactId,
             errorMessage: message,
+            ...(documentIntent.requested
+                ? { documentKind: documentIntent.kind, documentTask: "generation" }
+                : {}),
         });
         return {
-            reply: createTextReply(classifyGeminiError(message)),
+            reply: createTextReply(
+                documentIntent.requested
+                    ? classifyDocumentError(message)
+                    : classifyGeminiError(message),
+            ),
             latencyMs,
             aiModel: shouldUseImageGenerationModel
                 ? GEMINI_IMAGE_MODEL
                 : env.GEMINI_MODEL,
         };
     }
+}
+
+function classifyDocumentError(message: string): string {
+    if (/JSON|DOCUMENT_PLAN|Zod/i.test(message)) {
+        return "Maaf, rancangan dokumennya belum berhasil dipahami. Coba jelaskan isi dan pilih satu format: PDF, DOCX, atau XLSX.";
+    }
+    return classifyGeminiError(message);
 }
 
 function processOptionalGeminiOutput(value: string): string | undefined {

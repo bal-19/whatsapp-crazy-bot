@@ -267,6 +267,7 @@ Jenis reply yang sudah didukung di layer runtime:
 
 - `text`
 - `image`
+- `document`
 
 Aturan runtime:
 
@@ -276,6 +277,24 @@ Aturan runtime:
 - outbound reply menyimpan `reply_to_message_id` dari WhatsApp message id inbound yang dibalas
 - dashboard conversation memakai `reply_to_message_id` sebagai acuan quoted preview, bukan waktu atau urutan pesan
 - metadata media outbound disimpan ke `raw_payload`
+
+## 8.3 Generate Dokumen V1
+
+Bot dapat membuat tepat satu file per prompt dan langsung mengirimnya ke WhatsApp tanpa menyimpan file ke storage publik.
+
+Format aktif:
+
+- PDF dirender langsung di Node.js memakai `pdfkit` tanpa browser
+- DOCX memakai package `docx`
+- XLSX memakai package `exceljs`
+
+Perilaku:
+
+- Gemini menyusun rancangan JSON terstruktur, lalu server memvalidasi dan merender binary file
+- permintaan lebih dari satu format dalam satu prompt ditolak dengan arahan memilih satu format
+- jika format tidak disebut, runtime memakai heuristik: data/tabular ke XLSX, naratif ke DOCX, dan visual/siap cetak ke PDF
+- dashboard test prompt hanya menampilkan preview text dan tidak menyediakan download dokumen
+- metadata dokumen outbound disimpan ke `raw_payload`
 
 ## 8.2 Analisis Gambar V1
 

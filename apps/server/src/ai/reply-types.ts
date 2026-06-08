@@ -12,7 +12,19 @@ export interface ImageBotReply {
     auditMeta?: Record<string, unknown>;
 }
 
-export type BotReply = TextBotReply | ImageBotReply;
+export type DocumentKind = "pdf" | "docx" | "xlsx";
+
+export interface DocumentBotReply {
+    type: "document";
+    documentBuffer: Buffer;
+    fileName: string;
+    mimeType: string;
+    documentKind: DocumentKind;
+    caption?: string;
+    auditMeta?: Record<string, unknown>;
+}
+
+export type BotReply = TextBotReply | ImageBotReply | DocumentBotReply;
 
 export function createTextReply(text: string): TextBotReply {
     return { type: "text", text };
@@ -33,7 +45,27 @@ export function createImageReply(input: {
     };
 }
 
+export function createDocumentReply(input: {
+    documentBuffer: Buffer;
+    fileName: string;
+    mimeType: string;
+    documentKind: DocumentKind;
+    caption?: string | null;
+    auditMeta?: Record<string, unknown>;
+}): DocumentBotReply {
+    return {
+        type: "document",
+        documentBuffer: input.documentBuffer,
+        fileName: input.fileName,
+        mimeType: input.mimeType,
+        documentKind: input.documentKind,
+        caption: input.caption ?? undefined,
+        auditMeta: input.auditMeta,
+    };
+}
+
 export function getReplyPreview(reply: BotReply): string {
     if (reply.type === "text") return reply.text;
-    return reply.caption ?? "[image reply]";
+    if (reply.type === "image") return reply.caption ?? "[image reply]";
+    return reply.caption ?? `[document: ${reply.fileName}]`;
 }

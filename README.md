@@ -2,6 +2,8 @@
 
 Monorepo untuk bot WhatsApp berbasis Gemini dengan dashboard admin realtime. Project ini terdiri dari bot engine Node.js, dashboard React, package shared types, dan persistence di Supabase.
 
+![Preview WhatsApp AI Bot](./Whatsapp%20Mockup.png)
+
 ## Ringkasan
 
 Fitur yang sudah ada di repo saat ini:

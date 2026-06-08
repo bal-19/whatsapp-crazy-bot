@@ -37,6 +37,7 @@ import { createTextReply } from "../ai/reply-types.js";
 import { personalMemoryService } from "../services/personalMemoryService.js";
 import { parseInboundImageAttachment } from "../ai/media-parser.js";
 import { detectImageAnalysisMode } from "../ai/multimodal-service.js";
+import { isContactBlocked } from "./contact-policy.js";
 
 export class BotManager {
     private sock: WASocket | null = null;
@@ -228,6 +229,14 @@ export class BotManager {
 
         const scopeMeta = toConversationScopeLogMeta(scope);
         const memoryScopeKey = resolveMemoryScopeKey(scope);
+        if (await isContactBlocked(scope.contactJid)) {
+            logService.write("info", "message_ignored_blocked_contact", {
+                ...scopeMeta,
+                messageId,
+            });
+            return;
+        }
+
         if (scope.usedGroupFallback) {
             logService.write("warn", "conversation_scope_group_fallback", {
                 ...scopeMeta,

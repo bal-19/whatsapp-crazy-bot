@@ -119,8 +119,11 @@ Bot mengabaikan:
 - pesan dari akun sendiri
 - newsletter JID `@newsletter`
 - pesan tanpa teks/caption
+- pesan dari contact dengan `is_blocked=true`
 - grup jika `ignore_groups=true`
 - semua pesan jika `is_active=false`
+
+Contact yang diblokir dicek berdasarkan JID WhatsApp asli. Untuk pesan grup, status blocked member berlaku di semua grup dan pesan diabaikan sebelum disimpan atau diteruskan ke Gemini. Event dicatat sebagai `message_ignored_blocked_contact`.
 
 Catatan media:
 

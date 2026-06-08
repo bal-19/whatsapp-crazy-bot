@@ -92,6 +92,27 @@ export async function generateBotReply(
     const memoryScopeKey = input.memoryScopeKey ?? input.contactId;
     // Prioritize passed config, otherwise load from cached BotConfigService
     const config = input.config ?? (await botConfigService.getConfig());
+    if (documentIntent.requested && !config.documents_enabled) {
+        return {
+            reply: createTextReply(
+                "Maaf, fitur pembuatan dokumen sedang dinonaktifkan oleh admin.",
+            ),
+            latencyMs: Date.now() - startedAt,
+            aiModel: env.GEMINI_MODEL,
+        };
+    }
+    if (
+        documentIntent.kind &&
+        !config.allowed_document_formats.includes(documentIntent.kind)
+    ) {
+        return {
+            reply: createTextReply(
+                `Format ${documentIntent.kind.toUpperCase()} sedang tidak diizinkan. Pilih format lain yang tersedia.`,
+            ),
+            latencyMs: Date.now() - startedAt,
+            aiModel: env.GEMINI_MODEL,
+        };
+    }
     await ensureMemoryHydrated(memoryScopeKey);
     const personalMemorySummary = await personalMemoryService.getSummary(
         input.contactId,

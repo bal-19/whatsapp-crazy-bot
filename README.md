@@ -72,9 +72,9 @@ supabase/
 - `/groups`
   Simpan dan rapikan metadata nama grup WhatsApp.
 - `/config`
-  Ubah `bot_name`, `system_prompt`, `tone_style`, `is_active`, `ignore_groups`, plus test prompt.
+  Ubah `bot_name`, `system_prompt`, `tone_style`, `is_active`, `ignore_groups`, capability dokumen, format dokumen yang diizinkan, plus test prompt.
 - `/analytics`
-  Ringkasan metrik harian.
+  Ringkasan metrik harian termasuk penggunaan dan kegagalan generate dokumen.
 - `/logs`
   Monitoring log sistem.
 - `/users`
@@ -184,6 +184,7 @@ Urutan migration saat ini:
 - [202606050003_seed_admin_full_access.sql](/Volumes/Iqbal/websites/whatsapp-bot/supabase/migrations/202606050003_seed_admin_full_access.sql)
 - [202606050004_add_message_timestamp.sql](/Volumes/Iqbal/websites/whatsapp-bot/supabase/migrations/202606050004_add_message_timestamp.sql)
 - [202606080001_add_message_reply_reference.sql](/Volumes/Iqbal/websites/whatsapp-bot/supabase/migrations/202606080001_add_message_reply_reference.sql)
+- [202606080002_add_document_generation_settings.sql](/Volumes/Iqbal/websites/whatsapp-bot/supabase/migrations/202606080002_add_document_generation_settings.sql)
 
 ### 4. Jalankan aplikasi
 

@@ -3,6 +3,7 @@ export type MessageDirection = "inbound" | "outbound";
 export type MessageStatus = "sent" | "delivered" | "read" | "failed";
 export type LogLevel = "info" | "warn" | "error";
 export type ToneStyle = "pedas" | "wholesome" | "absurd" | "helpful" | "custom";
+export type DocumentKind = "pdf" | "docx" | "xlsx";
 
 export interface BotConfig {
     system_prompt: string;
@@ -10,6 +11,8 @@ export interface BotConfig {
     is_active: boolean;
     ignore_groups: boolean;
     tone_style: ToneStyle;
+    documents_enabled: boolean;
+    allowed_document_formats: DocumentKind[];
 }
 
 export interface BotStatusResponse {
@@ -65,6 +68,7 @@ export interface Message {
     tokens_used: number | null;
     latency_ms: number | null;
     reply_to_message_id: string | null;
+    raw_payload: Record<string, unknown> | null;
     message_timestamp: string;
     created_at: string;
 }
@@ -99,6 +103,10 @@ export interface AnalyticsSummary {
     active_contacts_today: number;
     avg_response_time_ms: number;
     gemini_errors_today: number;
+    documents_today: number;
+    document_failures_today: number;
+    avg_document_latency_ms: number;
+    documents_by_format: Record<DocumentKind, number>;
     daily_message_volume: {
         date: string;
         label: string;

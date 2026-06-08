@@ -2,6 +2,7 @@ import type { MessageDirection, MessageStatus } from '@whatsapp-bot/shared';
 import { motion } from 'framer-motion';
 import { entranceTransition } from '@/lib/motion';
 import { cn, formatDate } from '@/lib/utils';
+import { FileText } from 'lucide-react';
 
 interface ChatBubbleProps {
     direction: MessageDirection;
@@ -11,6 +12,11 @@ interface ChatBubbleProps {
     senderLabel?: string | null;
     quotedAuthor?: string | null;
     quotedContent?: string | null;
+    documentMeta?: {
+        fileName: string;
+        kind: string;
+        mimeType?: string;
+    } | null;
 }
 
 export function ChatBubble({
@@ -20,7 +26,8 @@ export function ChatBubble({
     status,
     senderLabel,
     quotedAuthor,
-    quotedContent
+    quotedContent,
+    documentMeta
 }: ChatBubbleProps) {
     const outbound = direction === 'outbound';
     return (
@@ -54,6 +61,24 @@ export function ChatBubble({
                     >
                         {quotedAuthor ? <p className="mb-0.5 font-bold">{quotedAuthor}</p> : null}
                         <p className="line-clamp-2 whitespace-pre-wrap break-words opacity-90">{quotedContent}</p>
+                    </div>
+                ) : null}
+                {documentMeta ? (
+                    <div
+                        className={cn(
+                            'mb-2 flex items-center gap-3 rounded-xl border px-3 py-2.5',
+                            outbound
+                                ? 'border-white/25 bg-white/15 text-emerald-50'
+                                : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200'
+                        )}
+                    >
+                        <FileText className="h-5 w-5 shrink-0" />
+                        <div className="min-w-0">
+                            <p className="truncate text-xs font-bold">{documentMeta.fileName}</p>
+                            <p className="mt-0.5 text-[10px] uppercase opacity-75">
+                                {documentMeta.kind}{documentMeta.mimeType ? ` · ${documentMeta.mimeType}` : ''}
+                            </p>
+                        </div>
                     </div>
                 ) : null}
                 <p className="whitespace-pre-wrap break-words">{content}</p>

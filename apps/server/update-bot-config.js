@@ -72,6 +72,8 @@ try {
             is_active: true,
             ignore_groups: false,
             tone_style: "helpful",
+            documents_enabled: true,
+            allowed_document_formats: ["pdf", "docx", "xlsx"],
         });
 
         if (insertError) throw insertError;
@@ -82,6 +84,8 @@ try {
                 bot_name: "Ikmal",
                 system_prompt: newPersona,
                 tone_style: "helpful",
+                documents_enabled: true,
+                allowed_document_formats: ["pdf", "docx", "xlsx"],
                 updated_at: new Date().toISOString(),
             })
             .eq("id", current.id);

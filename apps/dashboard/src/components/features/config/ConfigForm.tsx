@@ -48,6 +48,46 @@ export function ConfigForm({ draft, isDirty, isSaving, onFieldChange, onSave, on
                 </div>
             </div>
 
+            <div className="space-y-4 rounded-[1.25rem] border border-input bg-card/80 p-4 dark:border-slate-700 dark:bg-slate-800/50 sm:p-5">
+                <div className="flex items-center justify-between gap-4">
+                    <div className="space-y-0.5">
+                        <Label htmlFor="documents-enabled">Generate Dokumen</Label>
+                        <p className="text-xs text-muted-foreground">Izinkan bot membuat dan mengirim file dokumen</p>
+                    </div>
+                    <Switch
+                        id="documents-enabled"
+                        checked={draft.documents_enabled}
+                        onCheckedChange={(value) => onFieldChange('documents_enabled', value)}
+                    />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    {(['pdf', 'docx', 'xlsx'] as const).map((format) => {
+                        const checked = draft.allowed_document_formats.includes(format);
+                        return (
+                            <label
+                                key={format}
+                                className="flex cursor-pointer items-center gap-2 rounded-xl border border-input bg-background/80 px-3 py-2 text-xs font-semibold uppercase"
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    disabled={checked && draft.allowed_document_formats.length === 1}
+                                    onChange={() =>
+                                        onFieldChange(
+                                            'allowed_document_formats',
+                                            checked
+                                                ? draft.allowed_document_formats.filter((item) => item !== format)
+                                                : [...draft.allowed_document_formats, format]
+                                        )
+                                    }
+                                />
+                                {format}
+                            </label>
+                        );
+                    })}
+                </div>
+            </div>
+
             <div className="space-y-2.5">
                 <Label htmlFor="tone-style">Tone Style</Label>
                 <Input

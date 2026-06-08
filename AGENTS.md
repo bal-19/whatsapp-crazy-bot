@@ -295,6 +295,15 @@ Perilaku:
 - jika format tidak disebut, runtime memakai heuristik: data/tabular ke XLSX, naratif ke DOCX, dan visual/siap cetak ke PDF
 - dashboard test prompt hanya menampilkan preview text dan tidak menyediakan download dokumen
 - metadata dokumen outbound disimpan ke `raw_payload`
+- capability dokumen dapat dinyalakan/dimatikan dari config dashboard
+- format yang diizinkan dapat dibatasi melalui `allowed_document_formats`
+
+Dashboard menampilkan:
+
+- badge dan metadata file dokumen pada conversation
+- filter pesan dokumen berdasarkan PDF, DOCX, atau XLSX
+- filter event dan kegagalan dokumen pada logs
+- analytics jumlah, format, latency, dan kegagalan dokumen
 
 ## 8.2 Analisis Gambar V1
 

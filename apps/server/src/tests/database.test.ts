@@ -139,6 +139,34 @@ describe('appDb group metadata', () => {
 });
 
 describe('appDb personal memories', () => {
+  it('exposes document metadata and includes it in analytics', async () => {
+    const contactId = `document-analytics-${Date.now()}@s.whatsapp.net`;
+    const before = await appDb.getAnalyticsSummary();
+
+    await appDb.insertMessage({
+      id: `document-outbound-${Date.now()}`,
+      contact_id: contactId,
+      direction: 'outbound',
+      body: 'File laporan.pdf sudah dibuat.',
+      latency_ms: 120,
+      raw_payload: {
+        reply_type: 'document',
+        document_kind: 'pdf',
+        file_name: 'laporan.pdf',
+        mime_type: 'application/pdf'
+      }
+    });
+
+    const detail = await appDb.getConversation(contactId);
+    assert.equal(detail?.messages[0]?.raw_payload?.reply_type, 'document');
+    assert.equal(detail?.messages[0]?.raw_payload?.file_name, 'laporan.pdf');
+
+    const after = await appDb.getAnalyticsSummary();
+    assert.equal(after.documents_today, before.documents_today + 1);
+    assert.equal(after.documents_by_format.pdf, before.documents_by_format.pdf + 1);
+    assert.equal(after.avg_document_latency_ms > 0, true);
+  });
+
   it('preserves message timestamp separate from created_at for conversation ordering', async () => {
     const contactId = `timestamp-${Date.now()}@s.whatsapp.net`;
     const firstTimestamp = '2026-06-01T10:00:00.000Z';

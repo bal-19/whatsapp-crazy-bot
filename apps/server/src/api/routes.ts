@@ -40,6 +40,7 @@ import {
     updateRole,
     updateUser,
 } from "../services/accessControlService.js";
+import { botConfigService } from "../services/botConfigService.js";
 
 export function createApiRouter(): Router {
     const router = Router();
@@ -269,7 +270,10 @@ export function createApiRouter(): Router {
                 });
                 return;
             }
-            res.json(await appDb.updateConfig(body.data));
+            const config = await appDb.updateConfig(body.data);
+            botConfigService.clearCache();
+            await botConfigService.refreshConfig();
+            res.json(config);
         }),
     );
 
@@ -546,6 +550,8 @@ const configSchema = z.object({
     is_active: z.boolean(),
     ignore_groups: z.boolean(),
     tone_style: z.enum(["pedas", "wholesome", "absurd", "helpful", "custom"]),
+    documents_enabled: z.boolean(),
+    allowed_document_formats: z.array(z.enum(["pdf", "docx", "xlsx"])).min(1),
 }) satisfies z.ZodType<BotConfig>;
 
 const testPromptSchema = z.object({

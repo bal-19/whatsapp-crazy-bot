@@ -7,7 +7,9 @@ const DEFAULT_CONFIG: BotConfig = {
   system_prompt: 'Nama kamu adalah Bot Gila, mesin pembuat kocak dan pengejek di grup.',
   is_active: true,
   ignore_groups: false,
-  tone_style: 'pedas'
+  tone_style: 'pedas',
+  documents_enabled: true,
+  allowed_document_formats: ['pdf', 'docx', 'xlsx']
 };
 
 interface ConfigStore {

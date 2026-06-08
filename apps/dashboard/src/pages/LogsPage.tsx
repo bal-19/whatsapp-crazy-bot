@@ -8,12 +8,23 @@ export function LogsPage() {
     const { logs, loadLogs } = useLogStore();
     const [query, setQuery] = useState('');
     const [level, setLevel] = useState('');
+    const [eventFilter, setEventFilter] = useState('');
 
     useEffect(() => {
         void loadLogs(level || undefined);
     }, [level, loadLogs]);
 
-    const filtered = logs.filter((log) => `${log.level} ${log.message}`.toLowerCase().includes(query.toLowerCase()));
+    const filtered = logs.filter((log) => {
+        const searchable = `${log.level} ${log.message} ${JSON.stringify(log.meta ?? {})}`.toLowerCase();
+        const matchesQuery = searchable.includes(query.toLowerCase());
+        const isDocument = /document/.test(searchable);
+        const isFailure = isDocument && log.level === 'error';
+        return matchesQuery && (
+            !eventFilter ||
+            (eventFilter === 'document' && isDocument) ||
+            (eventFilter === 'document_failure' && isFailure)
+        );
+    });
 
     return (
         <div className="space-y-6 sm:space-y-7 lg:space-y-8">
@@ -33,6 +44,15 @@ export function LogsPage() {
                 <CardHeader className="flex flex-col gap-4 space-y-0 lg:flex-row lg:items-center lg:justify-between">
                     <CardTitle>Aktivitas</CardTitle>
                     <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
+                        <select
+                            className="flex h-10 w-full rounded-2xl border border-input bg-background/90 dark:bg-slate-800 px-4 text-sm sm:w-auto"
+                            value={eventFilter}
+                            onChange={(event) => setEventFilter(event.target.value)}
+                        >
+                            <option value="">Semua event</option>
+                            <option value="document">Event dokumen</option>
+                            <option value="document_failure">Kegagalan dokumen</option>
+                        </select>
                         <select
                             className="flex h-10 w-full rounded-2xl border border-input bg-background/90 dark:bg-slate-800 px-4 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:w-auto"
                             value={level}

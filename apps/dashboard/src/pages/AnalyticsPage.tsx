@@ -1,4 +1,4 @@
-import { AlertTriangle, Clock3, MessageCircle, Users } from 'lucide-react';
+import { AlertTriangle, Clock3, FileText, MessageCircle, Users } from 'lucide-react';
 import { useEffect } from 'react';
 import { MessageVolumeChart } from '@/components/features/analytics/MessageVolumeChart';
 import { Card, CardContent, CardHeader, CardTitle, StatCard } from '@/components/ui';
@@ -30,6 +30,12 @@ export function AnalyticsPage() {
                 <StatCard label="Kontak Aktif" value={analytics?.active_contacts_today ?? 0} icon={Users} />
                 <StatCard label="Avg Response" value={`${analytics?.avg_response_time_ms ?? 0} ms`} icon={Clock3} />
                 <StatCard label="Gemini Errors" value={analytics?.gemini_errors_today ?? 0} icon={AlertTriangle} color="red" />
+            </div>
+            <div className="grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-2 xl:grid-cols-4">
+                <StatCard label="Dokumen Hari Ini" value={analytics?.documents_today ?? 0} icon={FileText} />
+                <StatCard label="PDF / DOCX / XLSX" value={`${analytics?.documents_by_format.pdf ?? 0} / ${analytics?.documents_by_format.docx ?? 0} / ${analytics?.documents_by_format.xlsx ?? 0}`} icon={FileText} />
+                <StatCard label="Avg Render Dokumen" value={`${analytics?.avg_document_latency_ms ?? 0} ms`} icon={Clock3} />
+                <StatCard label="Dokumen Gagal" value={analytics?.document_failures_today ?? 0} icon={AlertTriangle} color="red" />
             </div>
             <Card>
                 <CardHeader>

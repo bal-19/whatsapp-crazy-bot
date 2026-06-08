@@ -57,6 +57,8 @@ const DEFAULT_CONFIG: BotConfig = {
     is_active: true,
     ignore_groups: false,
     tone_style: "helpful",
+    documents_enabled: true,
+    allowed_document_formats: ["pdf", "docx", "xlsx"],
 };
 
 interface ContactRow {
@@ -111,6 +113,8 @@ interface BotSettingsRow {
     is_active: boolean;
     ignore_groups: boolean;
     tone_style: ToneStyle;
+    documents_enabled: boolean;
+    allowed_document_formats: Array<"pdf" | "docx" | "xlsx">;
     updated_at: string;
 }
 
@@ -864,6 +868,14 @@ class InMemoryDatabase implements DatabaseAdapter {
                 Date.parse(log.created_at) >= start.getTime() &&
                 Date.parse(log.created_at) < end.getTime(),
         ).length;
+        const documentsToday = messagesToday.filter(isDocumentMessage);
+        const documentFailuresToday = this.logs.filter(
+            (log) =>
+                log.level === "error" &&
+                log.meta?.documentTask === "generation" &&
+                Date.parse(log.created_at) >= start.getTime() &&
+                Date.parse(log.created_at) < end.getTime(),
+        ).length;
 
         return {
             messages_today: messagesToday.length,
@@ -886,6 +898,10 @@ class InMemoryDatabase implements DatabaseAdapter {
                           ) / outboundWithLatency.length,
                       ),
             gemini_errors_today: geminiErrorsToday,
+            documents_today: documentsToday.length,
+            document_failures_today: documentFailuresToday,
+            avg_document_latency_ms: averageLatency(documentsToday),
+            documents_by_format: countDocumentsByFormat(documentsToday),
             daily_message_volume: dailyMessageVolume,
         };
     }
@@ -943,6 +959,11 @@ class SupabaseDatabase implements DatabaseAdapter {
             is_active: patch.is_active ?? current.is_active,
             ignore_groups: patch.ignore_groups ?? current.ignore_groups,
             tone_style: patch.tone_style ?? current.tone_style,
+            documents_enabled:
+                patch.documents_enabled ?? current.documents_enabled,
+            allowed_document_formats:
+                patch.allowed_document_formats ??
+                current.allowed_document_formats,
             updated_at: new Date().toISOString(),
         };
 
@@ -1446,6 +1467,8 @@ class SupabaseDatabase implements DatabaseAdapter {
             outboundLatencyResult,
             geminiErrorsResult,
             dailyVolumeResult,
+            documentMessagesResult,
+            documentFailuresResult,
         ] = await Promise.all([
             supabaseAdmin!
                 .from("messages")
@@ -1477,6 +1500,20 @@ class SupabaseDatabase implements DatabaseAdapter {
                 .from("messages")
                 .select("created_at")
                 .gte("created_at", earliestRangeStart),
+            supabaseAdmin!
+                .from("messages")
+                .select("latency_ms, raw_payload")
+                .eq("direction", "outbound")
+                .eq("raw_payload->>reply_type", "document")
+                .gte("created_at", start.toISOString())
+                .lt("created_at", end.toISOString()),
+            supabaseAdmin!
+                .from("system_logs")
+                .select("id", { count: "exact", head: true })
+                .eq("level", "error")
+                .eq("meta->>documentTask", "generation")
+                .gte("created_at", start.toISOString())
+                .lt("created_at", end.toISOString()),
         ]);
 
         assertSupabaseSuccess(
@@ -1503,6 +1540,14 @@ class SupabaseDatabase implements DatabaseAdapter {
             dailyVolumeResult.error,
             "Gagal mengambil analytics volume harian.",
         );
+        assertSupabaseSuccess(
+            documentMessagesResult.error,
+            "Gagal mengambil analytics dokumen.",
+        );
+        assertSupabaseSuccess(
+            documentFailuresResult.error,
+            "Gagal mengambil analytics kegagalan dokumen.",
+        );
 
         const latencies = (outboundLatencyResult.data ?? [])
             .map((row) => row.latency_ms)
@@ -1510,6 +1555,10 @@ class SupabaseDatabase implements DatabaseAdapter {
         const dailyMessageVolume = buildDailyMessageVolumeFromTimestamps(
             (dailyVolumeResult.data ?? []).map((row) => row.created_at),
         );
+        const documentMessages = (documentMessagesResult.data ?? []).map((row) => ({
+            latency_ms: row.latency_ms,
+            raw_payload: row.raw_payload as Record<string, unknown> | null,
+        }));
 
         return {
             messages_today: messagesTodayResult.count ?? 0,
@@ -1525,6 +1574,10 @@ class SupabaseDatabase implements DatabaseAdapter {
                               latencies.length,
                       ),
             gemini_errors_today: geminiErrorsResult.count ?? 0,
+            documents_today: documentMessages.length,
+            document_failures_today: documentFailuresResult.count ?? 0,
+            avg_document_latency_ms: averageLatency(documentMessages),
+            documents_by_format: countDocumentsByFormat(documentMessages),
             daily_message_volume: dailyMessageVolume,
         };
     }
@@ -1814,6 +1867,10 @@ function mapConfigRow(row: BotSettingsRow): BotConfig {
         is_active: row.is_active ?? DEFAULT_CONFIG.is_active,
         ignore_groups: row.ignore_groups ?? DEFAULT_CONFIG.ignore_groups,
         tone_style: row.tone_style ?? DEFAULT_CONFIG.tone_style,
+        documents_enabled:
+            row.documents_enabled ?? DEFAULT_CONFIG.documents_enabled,
+        allowed_document_formats:
+            row.allowed_document_formats ?? DEFAULT_CONFIG.allowed_document_formats,
     };
 }
 
@@ -1848,9 +1905,36 @@ function mapMessageRow(row: MessageRow, contactJid: string): Message {
         tokens_used: row.tokens_used,
         latency_ms: row.latency_ms,
         reply_to_message_id: row.reply_to_message_id,
+        raw_payload: row.raw_payload,
         message_timestamp: row.message_timestamp,
         created_at: row.created_at,
     };
+}
+
+function isDocumentMessage(message: Pick<MessageRow, "raw_payload">): boolean {
+    return message.raw_payload?.reply_type === "document";
+}
+
+function averageLatency(
+    messages: Array<{ latency_ms: number | null }>,
+): number {
+    const values = messages
+        .map((message) => message.latency_ms)
+        .filter((value): value is number => typeof value === "number");
+    return values.length === 0
+        ? 0
+        : Math.round(values.reduce((total, value) => total + value, 0) / values.length);
+}
+
+function countDocumentsByFormat(
+    messages: Array<{ raw_payload: Record<string, unknown> | null }>,
+): Record<"pdf" | "docx" | "xlsx", number> {
+    const counts = { pdf: 0, docx: 0, xlsx: 0 };
+    messages.forEach((message) => {
+        const kind = message.raw_payload?.document_kind;
+        if (kind === "pdf" || kind === "docx" || kind === "xlsx") counts[kind]++;
+    });
+    return counts;
 }
 
 function mapSystemLogRow(row: SystemLogRow): SystemLog {

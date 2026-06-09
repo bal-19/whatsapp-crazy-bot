@@ -4,6 +4,7 @@ export type MessageStatus = "sent" | "delivered" | "read" | "failed";
 export type LogLevel = "info" | "warn" | "error";
 export type ToneStyle = "pedas" | "wholesome" | "absurd" | "helpful" | "custom";
 export type DocumentKind = "pdf" | "docx" | "xlsx";
+export type OutboxStatus = "pending" | "processing" | "sent" | "failed";
 
 export interface BotConfig {
     system_prompt: string;
@@ -39,6 +40,33 @@ export interface WhatsAppGroup {
     updated_at: string;
 }
 
+export interface KnowledgeItem {
+    id: string;
+    title: string;
+    question: string;
+    answer: string;
+    tags: string[];
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface CreateKnowledgeItemRequest {
+    title: string;
+    question: string;
+    answer: string;
+    tags?: string[];
+    is_active?: boolean;
+}
+
+export interface UpdateKnowledgeItemRequest {
+    title?: string;
+    question?: string;
+    answer?: string;
+    tags?: string[];
+    is_active?: boolean;
+}
+
 export interface CreateContactRequest {
     id: string;
     name?: string | null;
@@ -71,6 +99,21 @@ export interface Message {
     raw_payload: Record<string, unknown> | null;
     message_timestamp: string;
     created_at: string;
+}
+
+export interface OutboxMessage {
+    id: string;
+    contact_id: string;
+    delivery_jid: string;
+    reply_preview: string;
+    status: OutboxStatus;
+    attempt_count: number;
+    max_attempts: number;
+    last_error: string | null;
+    next_retry_at: string | null;
+    sent_at: string | null;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface ConversationSummary {

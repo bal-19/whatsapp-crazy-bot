@@ -19,10 +19,14 @@ export function LogsPage() {
         const matchesQuery = searchable.includes(query.toLowerCase());
         const isDocument = /document/.test(searchable);
         const isFailure = isDocument && log.level === 'error';
+        const isAdminAudit = /admin_/.test(log.message);
+        const isOutbox = /outbox/.test(searchable);
         return matchesQuery && (
             !eventFilter ||
             (eventFilter === 'document' && isDocument) ||
-            (eventFilter === 'document_failure' && isFailure)
+            (eventFilter === 'document_failure' && isFailure) ||
+            (eventFilter === 'admin_audit' && isAdminAudit) ||
+            (eventFilter === 'outbox' && isOutbox)
         );
     });
 
@@ -52,6 +56,8 @@ export function LogsPage() {
                             <option value="">Semua event</option>
                             <option value="document">Event dokumen</option>
                             <option value="document_failure">Kegagalan dokumen</option>
+                            <option value="admin_audit">Audit admin</option>
+                            <option value="outbox">Event outbox</option>
                         </select>
                         <select
                             className="flex h-10 w-full rounded-2xl border border-input bg-background/90 dark:bg-slate-800 px-4 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:w-auto"

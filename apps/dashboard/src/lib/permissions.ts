@@ -31,8 +31,10 @@ export function firstAccessibleRoute(permissions: DashboardPermission[]): string
     { to: '/contacts', permission: 'contacts.manage' },
     { to: '/groups', permission: 'groups.manage' },
     { to: '/config', permission: 'config.manage' },
+    { to: '/knowledge', permission: 'config.manage' },
     { to: '/analytics', permission: 'analytics.view' },
     { to: '/logs', permission: 'logs.view' },
+    { to: '/outbox', permission: 'logs.view' },
     { to: '/users', permission: 'users.manage' },
     { to: '/roles', permission: 'roles.manage' },
   ];

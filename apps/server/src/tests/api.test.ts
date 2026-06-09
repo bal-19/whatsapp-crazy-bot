@@ -64,6 +64,46 @@ describe('api', () => {
 
     const config = await request(baseUrl).get('/api/v1/config').set('Authorization', `Bearer ${token}`).expect(200);
     assert.equal(config.body.bot_name, 'Tester Bot');
+
+    const logs = await appDb.listLogs();
+    assert.equal(logs.some((log) => log.message === 'admin_config_updated'), true);
+  });
+
+  it('creates knowledge items through the protected API', async (t) => {
+    if (!baseUrl) {
+      t.skip(`HTTP listener unavailable: ${listenError?.message ?? 'unknown error'}`);
+      return;
+    }
+
+    const login = await request(baseUrl)
+      .post('/api/v1/auth/login')
+      .send({ username: 'admin', password: 'admin123' })
+      .expect(200);
+
+    const token = login.body.token as string;
+
+    const created = await request(baseUrl)
+      .post('/api/v1/knowledge')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        title: 'FAQ Harga API',
+        question: 'Berapa harga paket premium?',
+        answer: 'Paket premium mulai dari 199 ribu.',
+        tags: ['harga', 'premium']
+      })
+      .expect(201);
+
+    assert.equal(created.body.title, 'FAQ Harga API');
+
+    const list = await request(baseUrl)
+      .get('/api/v1/knowledge')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    assert.equal(
+      list.body.data.some((item: { id: string }) => item.id === created.body.id),
+      true
+    );
   });
 
   it('returns conversations and logs collections', async (t) => {

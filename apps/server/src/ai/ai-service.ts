@@ -38,6 +38,7 @@ import {
     parseDocumentPlan,
     renderDocument,
 } from "../documents/document-service.js";
+import { knowledgeService } from "../services/knowledgeService.js";
 
 type GeminiReplyPayload = string | GeminiMultimodalReply;
 
@@ -120,6 +121,11 @@ export async function generateBotReply(
     const personalMemorySummary = await personalMemoryService.getSummary(
         input.contactId,
     );
+    const knowledgeItems = await knowledgeService.retrieveRelevantContext(
+        input.message,
+    );
+    const knowledgeSummary =
+        knowledgeService.formatPromptContext(knowledgeItems);
 
     const systemPrompt = buildSystemPrompt({
         botName: config.bot_name,
@@ -127,6 +133,7 @@ export async function generateBotReply(
         toneStyle: config.tone_style,
         contactName: input.contactName,
         personalMemorySummary,
+        knowledgeSummary,
     });
 
     try {

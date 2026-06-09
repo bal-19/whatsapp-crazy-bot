@@ -276,10 +276,63 @@ Aturan runtime:
 
 - text reply tetap dikirim sebagai `{ text: ... }`
 - image reply bisa dikirim dari `imageUrl` atau `imageBuffer`
+- sebelum dikirim ke WhatsApp, outbound reply sekarang masuk ke `outbox_messages` lebih dulu
+- payload reply diserialisasi ke JSON agar text, image buffer, dan document buffer bisa di-retry
 - preview outbound yang disimpan di database tetap memakai text utama atau caption
 - outbound reply menyimpan `reply_to_message_id` dari WhatsApp message id inbound yang dibalas
 - dashboard conversation memakai `reply_to_message_id` sebagai acuan quoted preview, bukan waktu atau urutan pesan
 - metadata media outbound disimpan ke `raw_payload`
+
+## 8.4 Knowledge Base / RAG Ringan V1
+
+Bot sekarang punya knowledge base ringan berbasis FAQ manual dari dashboard.
+
+Komponen:
+
+- `apps/server/src/services/knowledgeService.ts`
+- `apps/server/src/ai/prompt-builder.ts`
+- `apps/server/src/ai/ai-service.ts`
+
+Perilaku V1:
+
+- admin bisa menyimpan item knowledge berupa `title`, `question`, `answer`, `tags`, dan `is_active`
+- retrieval masih ringan berbasis keyword scoring, belum memakai embedding
+- hanya item `is_active=true` yang ikut dipertimbangkan
+- context knowledge disisipkan ke prompt sebagai section `Knowledge Base Bisnis`
+- knowledge diposisikan sebagai fakta prioritas bila relevan, tetapi tetap berada di dalam alur prompt yang sama dengan persona dan memory
+- jika tidak ada item relevan, alur reply kembali seperti sebelumnya tanpa knowledge context
+
+Dashboard menampilkan:
+
+- halaman `/knowledge`
+- CRUD knowledge item
+- status active/inactive per item
+
+## 8.5 Outbox dan Retry Outbound V1
+
+Pengiriman outbound WhatsApp sekarang memakai outbox persisten sebelum benar-benar dikirim.
+
+Komponen:
+
+- `apps/server/src/services/outboxService.ts`
+- `apps/server/src/services/mediaService.ts`
+- `apps/server/src/bot/bot-manager.ts`
+
+Perilaku V1:
+
+- setiap reply bot masuk dulu ke tabel `outbox_messages`
+- worker in-process melakukan polling dan mencoba kirim message yang `pending`
+- saat claim, status berubah ke `processing` dan `attempt_count` bertambah
+- bila kirim berhasil, status outbox menjadi `sent`, lalu outbound message baru ditulis ke tabel `messages`
+- bila kirim gagal, error disimpan ke `last_error` dan message dijadwalkan ulang
+- backoff retry saat ini bertahap sederhana: sekitar `30 detik`, `2 menit`, lalu `10 menit`
+- jika attempt mencapai batas maksimal, status berubah menjadi `failed`
+
+Dashboard menampilkan:
+
+- halaman `/outbox`
+- filter status `pending`, `processing`, `sent`, dan `failed`
+- info attempt, last error, next retry, dan sent time
 
 ## 8.3 Generate Dokumen V1
 
@@ -344,6 +397,7 @@ Tambahan:
 - queue dianggap overload jika size > 50
 - jika overload, user langsung menerima `ERROR_MESSAGES.queue_full`
 - ada counter request harian untuk observability
+- outbox retry queue berjalan terpisah dari Gemini queue dan fokus pada delivery WhatsApp outbound
 
 Aturan HTTP API:
 
@@ -399,9 +453,19 @@ Event penting yang muncul di kode:
 - `audit_memory_cleared`
 - `audit_multimodal_requested`
 - `audit_reply_sent`
+- `outbox_delivery_failed`
 - `image_analysis_media_error`
 - `group_jid_track_failed`
 - `gemini_error`
+- `admin_config_updated`
+- `admin_conversation_cleared`
+- `admin_bot_restart_requested`
+- `admin_bot_reset_auth_requested`
+- `admin_knowledge_created`
+- `admin_knowledge_updated`
+- `admin_knowledge_deleted`
+- `admin_group_deleted`
+- `admin_operational_data_purged`
 
 Metadata `audit_reply_sent` sekarang juga dapat memuat:
 
@@ -410,6 +474,15 @@ Metadata `audit_reply_sent` sekarang juga dapat memuat:
 - `mimeType`
 - `mediaSource`
 - `hasCaption`
+- `outboxId`
+
+Audit admin sekarang juga menyimpan metadata actor:
+
+- `actorUserId`
+- `actorUsername`
+- `actorRoleName`
+- `requestPath`
+- `requestMethod`
 
 ## 12. Dashboard Authentication dan Authorization
 
@@ -469,6 +542,9 @@ Test server yang tersedia saat ini:
 - [apps/server/src/tests/output-processor.test.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/tests/output-processor.test.ts:1)
 - [apps/server/src/tests/intent-detector.test.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/tests/intent-detector.test.ts:1)
 - [apps/server/src/tests/api.test.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/tests/api.test.ts:1)
+- [apps/server/src/tests/database.test.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/tests/database.test.ts:1)
+- [apps/server/src/tests/media-service.test.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/tests/media-service.test.ts:1)
+- [apps/server/src/tests/knowledge-service.test.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/tests/knowledge-service.test.ts:1)
 - [apps/server/src/tests/whatsapp-auth-state.test.ts](/Volumes/Iqbal/websites/whatsapp-bot/apps/server/src/tests/whatsapp-auth-state.test.ts:1)
 
 ## 14. Catatan Konsistensi

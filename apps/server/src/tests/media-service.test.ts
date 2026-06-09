@@ -66,6 +66,10 @@ describe("mediaService", () => {
             mediaSource: "buffer",
             hasCaption: false,
         });
+        const serialized = mediaService.serializeReply(reply);
+        const hydrated = mediaService.deserializeReply(serialized);
+        assert.equal(hydrated.type, "image");
+        assert.deepEqual(hydrated.imageBuffer, Buffer.from("hello"));
         assert.equal(getReplyPreview(reply), "[image reply]");
     });
 
@@ -110,6 +114,10 @@ describe("mediaService", () => {
             mediaSource: "buffer",
             hasCaption: true,
         });
+        const serialized = mediaService.serializeReply(reply);
+        const hydrated = mediaService.deserializeReply(serialized);
+        assert.equal(hydrated.type, "document");
+        assert.deepEqual(hydrated.documentBuffer, Buffer.from("document"));
         assert.equal(getReplyPreview(reply), "Ini laporannya");
     });
 });

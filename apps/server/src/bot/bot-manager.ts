@@ -38,6 +38,7 @@ import { personalMemoryService } from "../services/personalMemoryService.js";
 import { parseInboundImageAttachment } from "../ai/media-parser.js";
 import { detectImageAnalysisMode } from "../ai/multimodal-service.js";
 import { isContactBlocked } from "./contact-policy.js";
+import { outboxService } from "../services/outboxService.js";
 
 export class BotManager {
     private sock: WASocket | null = null;
@@ -90,6 +91,18 @@ export class BotManager {
             this.sock.ev.on("messages.upsert", (event) => {
                 void this.handleMessages(event.messages);
             });
+            outboxService.setTransport(async (deliveryJid, reply, quotedMessage) => {
+                if (!this.sock) {
+                    throw new Error("WhatsApp socket is not connected");
+                }
+                const replyContent = mediaService.toWhatsAppContent(reply);
+                await this.sock.sendMessage(
+                    deliveryJid,
+                    replyContent,
+                    quotedMessage ? { quoted: quotedMessage } : undefined,
+                );
+            });
+            outboxService.start();
 
             logService.write("info", "bot_starting", {
                 qrTimeoutMs: env.WA_QR_TIMEOUT_MS,
@@ -435,40 +448,31 @@ export class BotManager {
         latencyMs: number | null,
         quotedMessage?: proto.IWebMessageInfo,
     ): Promise<Message> {
-        const body = getReplyPreview(reply);
-        const replyContent = mediaService.toWhatsAppContent(reply);
-        const rawPayload = mediaService.toStoragePayload(reply);
-        const auditSummary = mediaService.toAuditSummary(reply);
-        const replyToMessageId = quotedMessage?.key.id ?? null;
-
-        await this.sock?.sendMessage(
-            scope.deliveryJid,
-            replyContent,
-            quotedMessage ? { quoted: quotedMessage } : undefined,
-        );
         await appDb.upsertContact(scope.contactJid);
-        const outbound = await appDb.insertMessage({
-            id: `bot-${Date.now()}-${crypto.randomUUID()}`,
-            contact_id: scope.contactId,
-            direction: "outbound",
-            body,
-            ai_model: aiModel,
-            latency_ms: latencyMs,
-            reply_to_message_id: replyToMessageId,
-            raw_payload: rawPayload,
-            message_timestamp: new Date().toISOString(),
-        });
-        emitNewMessage(scope.contactId, outbound);
-        emitAnalyticsUpdate(await appDb.getAnalyticsSummary());
-        logService.write("info", "audit_reply_sent", {
-            ...toConversationScopeLogMeta(scope),
+        await outboxService.enqueue({
+            contactId: scope.contactId,
+            deliveryJid: scope.deliveryJid,
+            reply,
             aiModel,
             latencyMs,
-            replyToMessageId,
-            ...auditSummary,
-            outputLength: body.length,
+            quotedMessage,
+            scopeMeta: toConversationScopeLogMeta(scope),
         });
-        return outbound;
+
+        return {
+            id: `outbox-${Date.now()}-${crypto.randomUUID()}`,
+            contact_id: scope.contactId,
+            direction: "outbound",
+            body: getReplyPreview(reply),
+            status: "sent",
+            ai_model: aiModel,
+            tokens_used: null,
+            latency_ms: latencyMs,
+            reply_to_message_id: quotedMessage?.key.id ?? null,
+            raw_payload: mediaService.toStoragePayload(reply),
+            message_timestamp: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+        };
     }
 
     private async trackGroupJid(

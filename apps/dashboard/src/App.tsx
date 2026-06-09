@@ -12,6 +12,8 @@ import { AnalyticsPage } from '@/pages/AnalyticsPage';
 import { LogsPage } from '@/pages/LogsPage';
 import { UsersPage } from '@/pages/UsersPage';
 import { RolesPage } from '@/pages/RolesPage';
+import { KnowledgePage } from '@/pages/KnowledgePage';
+import { OutboxPage } from '@/pages/OutboxPage';
 import { Toaster } from '@/components/ui/toaster';
 import { PWAStatusIndicator } from '@/components/ui/PWAStatusIndicator';
 import { useAuthStore } from '@/stores/authStore';
@@ -28,8 +30,10 @@ export function App() {
                     <Route path="/contacts" element={<RequirePermission permission="contacts.manage"><ContactsPage /></RequirePermission>} />
                     <Route path="/groups" element={<RequirePermission permission="groups.manage"><GroupsPage /></RequirePermission>} />
                     <Route path="/config" element={<RequirePermission permission="config.manage"><ConfigPage /></RequirePermission>} />
+                    <Route path="/knowledge" element={<RequirePermission permission="config.manage"><KnowledgePage /></RequirePermission>} />
                     <Route path="/analytics" element={<RequirePermission permission="analytics.view"><AnalyticsPage /></RequirePermission>} />
                     <Route path="/logs" element={<RequirePermission permission="logs.view"><LogsPage /></RequirePermission>} />
+                    <Route path="/outbox" element={<RequirePermission permission="logs.view"><OutboxPage /></RequirePermission>} />
                     <Route path="/users" element={<RequirePermission permission="users.manage"><UsersPage /></RequirePermission>} />
                     <Route path="/roles" element={<RequirePermission permission="roles.manage"><RolesPage /></RequirePermission>} />
                 </Route>

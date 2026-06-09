@@ -5,14 +5,19 @@ import type {
     Contact,
     ConversationDetail,
     ConversationSummary,
+    CreateKnowledgeItemRequest,
     CreateContactRequest,
+    KnowledgeItem,
     LogLevel,
     Message,
     MessageDirection,
     MessageStatus,
+    OutboxMessage,
+    OutboxStatus,
     PaginatedResponse,
     SystemLog,
     ToneStyle,
+    UpdateKnowledgeItemRequest,
     UpdateContactRequest,
     WhatsAppGroup,
 } from "@whatsapp-bot/shared";
@@ -149,6 +154,33 @@ interface ConversationSummaryRow {
     avg_response_time_ms: number | null;
 }
 
+interface KnowledgeItemRow {
+    id: string;
+    title: string;
+    question: string;
+    answer: string;
+    tags: string[] | null;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+interface OutboxMessageRow {
+    id: string;
+    contact_id: string;
+    delivery_jid: string;
+    reply_preview: string;
+    payload: Record<string, unknown>;
+    status: OutboxStatus;
+    attempt_count: number;
+    max_attempts: number;
+    last_error: string | null;
+    next_retry_at: string | null;
+    sent_at: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
 interface DailyMessageVolume {
     date: string;
     label: string;
@@ -189,6 +221,13 @@ interface DatabaseAdapter {
     listGroups(): Promise<WhatsAppGroup[]>;
     upsertGroup(groupJid: string, name?: string | null): Promise<WhatsAppGroup>;
     deleteGroup(groupJid: string): Promise<void>;
+    listKnowledgeItems(): Promise<KnowledgeItem[]>;
+    createKnowledgeItem(input: CreateKnowledgeItemRequest): Promise<KnowledgeItem>;
+    updateKnowledgeItem(
+        knowledgeId: string,
+        patch: UpdateKnowledgeItemRequest,
+    ): Promise<KnowledgeItem | null>;
+    deleteKnowledgeItem(knowledgeId: string): Promise<void>;
     insertMessage(input: {
         id: string;
         contact_id: string;
@@ -229,6 +268,24 @@ interface DatabaseAdapter {
         meta?: Record<string, unknown>,
     ): Promise<SystemLog>;
     listLogs(level?: string, limit?: number): Promise<SystemLog[]>;
+    createOutboxMessage(input: {
+        contact_id: string;
+        delivery_jid: string;
+        reply_preview: string;
+        payload: Record<string, unknown>;
+        max_attempts?: number;
+        next_retry_at?: string | null;
+    }): Promise<OutboxMessage>;
+    listOutboxMessages(status?: OutboxStatus): Promise<OutboxMessage[]>;
+    getOutboxMessage(id: string): Promise<OutboxMessageRow | null>;
+    claimPendingOutboxMessages(limit?: number): Promise<OutboxMessageRow[]>;
+    markOutboxMessageSent(id: string): Promise<void>;
+    rescheduleOutboxMessage(
+        id: string,
+        errorMessage: string,
+        nextRetryAt: string | null,
+        markFailed?: boolean,
+    ): Promise<void>;
     close(): Promise<void>;
 }
 
@@ -280,6 +337,25 @@ class AppDatabase {
 
     deleteGroup(groupJid: string): Promise<void> {
         return this.adapter.deleteGroup(groupJid);
+    }
+
+    listKnowledgeItems(): Promise<KnowledgeItem[]> {
+        return this.adapter.listKnowledgeItems();
+    }
+
+    createKnowledgeItem(input: CreateKnowledgeItemRequest): Promise<KnowledgeItem> {
+        return this.adapter.createKnowledgeItem(input);
+    }
+
+    updateKnowledgeItem(
+        knowledgeId: string,
+        patch: UpdateKnowledgeItemRequest,
+    ): Promise<KnowledgeItem | null> {
+        return this.adapter.updateKnowledgeItem(knowledgeId, patch);
+    }
+
+    deleteKnowledgeItem(knowledgeId: string): Promise<void> {
+        return this.adapter.deleteKnowledgeItem(knowledgeId);
     }
 
     insertMessage(
@@ -351,6 +427,42 @@ class AppDatabase {
         return this.adapter.listLogs(level, limit);
     }
 
+    createOutboxMessage(
+        input: Parameters<DatabaseAdapter["createOutboxMessage"]>[0],
+    ): Promise<OutboxMessage> {
+        return this.adapter.createOutboxMessage(input);
+    }
+
+    listOutboxMessages(status?: OutboxStatus): Promise<OutboxMessage[]> {
+        return this.adapter.listOutboxMessages(status);
+    }
+
+    getOutboxMessage(id: string): Promise<OutboxMessageRow | null> {
+        return this.adapter.getOutboxMessage(id);
+    }
+
+    claimPendingOutboxMessages(limit = 5): Promise<OutboxMessageRow[]> {
+        return this.adapter.claimPendingOutboxMessages(limit);
+    }
+
+    markOutboxMessageSent(id: string): Promise<void> {
+        return this.adapter.markOutboxMessageSent(id);
+    }
+
+    rescheduleOutboxMessage(
+        id: string,
+        errorMessage: string,
+        nextRetryAt: string | null,
+        markFailed = false,
+    ): Promise<void> {
+        return this.adapter.rescheduleOutboxMessage(
+            id,
+            errorMessage,
+            nextRetryAt,
+            markFailed,
+        );
+    }
+
     close(): Promise<void> {
         return this.adapter.close();
     }
@@ -361,7 +473,9 @@ class InMemoryDatabase implements DatabaseAdapter {
     private contacts = new Map<string, ContactRow>();
     private conversationScopes = new Map<string, ConversationScopeRow>();
     private groups = new Map<string, WhatsAppGroupRow>();
+    private knowledgeItems = new Map<string, KnowledgeItemRow>();
     private messages: MessageRow[] = [];
+    private outboxMessages = new Map<string, OutboxMessageRow>();
     private personalMemories = new Map<string, PersonalMemoryRow[]>();
     private logs: SystemLog[] = [];
     private nextLogId = 1;
@@ -560,6 +674,58 @@ class InMemoryDatabase implements DatabaseAdapter {
                     : scope,
             ]),
         );
+    }
+
+    async listKnowledgeItems(): Promise<KnowledgeItem[]> {
+        return [...this.knowledgeItems.values()]
+            .sort(
+                (a, b) =>
+                    Number(b.is_active) - Number(a.is_active) ||
+                    Date.parse(b.updated_at) - Date.parse(a.updated_at),
+            )
+            .map(mapKnowledgeItemRow);
+    }
+
+    async createKnowledgeItem(
+        input: CreateKnowledgeItemRequest,
+    ): Promise<KnowledgeItem> {
+        const now = new Date().toISOString();
+        const row: KnowledgeItemRow = {
+            id: crypto.randomUUID(),
+            title: input.title.trim(),
+            question: input.question.trim(),
+            answer: input.answer.trim(),
+            tags: normalizeTags(input.tags),
+            is_active: input.is_active ?? true,
+            created_at: now,
+            updated_at: now,
+        };
+        this.knowledgeItems.set(row.id, row);
+        return mapKnowledgeItemRow(row);
+    }
+
+    async updateKnowledgeItem(
+        knowledgeId: string,
+        patch: UpdateKnowledgeItemRequest,
+    ): Promise<KnowledgeItem | null> {
+        const current = this.knowledgeItems.get(knowledgeId);
+        if (!current) return null;
+
+        const next: KnowledgeItemRow = {
+            ...current,
+            title: patch.title?.trim() ?? current.title,
+            question: patch.question?.trim() ?? current.question,
+            answer: patch.answer?.trim() ?? current.answer,
+            tags: patch.tags ? normalizeTags(patch.tags) : current.tags,
+            is_active: patch.is_active ?? current.is_active,
+            updated_at: new Date().toISOString(),
+        };
+        this.knowledgeItems.set(knowledgeId, next);
+        return mapKnowledgeItemRow(next);
+    }
+
+    async deleteKnowledgeItem(knowledgeId: string): Promise<void> {
+        this.knowledgeItems.delete(knowledgeId);
     }
 
     async insertMessage(input: {
@@ -821,6 +987,7 @@ class InMemoryDatabase implements DatabaseAdapter {
         this.conversationScopes.clear();
         this.groups.clear();
         this.messages = [];
+        this.outboxMessages.clear();
         this.personalMemories.clear();
 
         return {
@@ -927,6 +1094,112 @@ class InMemoryDatabase implements DatabaseAdapter {
             ? this.logs.filter((log) => log.level === level)
             : this.logs;
         return logs.slice(0, limit);
+    }
+
+    async createOutboxMessage(input: {
+        contact_id: string;
+        delivery_jid: string;
+        reply_preview: string;
+        payload: Record<string, unknown>;
+        max_attempts?: number;
+        next_retry_at?: string | null;
+    }): Promise<OutboxMessage> {
+        const now = new Date().toISOString();
+        const row: OutboxMessageRow = {
+            id: crypto.randomUUID(),
+            contact_id: input.contact_id,
+            delivery_jid: input.delivery_jid,
+            reply_preview: input.reply_preview,
+            payload: input.payload,
+            status: "pending",
+            attempt_count: 0,
+            max_attempts: input.max_attempts ?? 3,
+            last_error: null,
+            next_retry_at: input.next_retry_at ?? now,
+            sent_at: null,
+            created_at: now,
+            updated_at: now,
+        };
+        this.outboxMessages.set(row.id, row);
+        return mapOutboxMessageRow(row);
+    }
+
+    async listOutboxMessages(status?: OutboxStatus): Promise<OutboxMessage[]> {
+        return [...this.outboxMessages.values()]
+            .filter((row) => (status ? row.status === status : true))
+            .sort(
+                (a, b) =>
+                    Date.parse(b.updated_at) - Date.parse(a.updated_at) ||
+                    Date.parse(b.created_at) - Date.parse(a.created_at),
+            )
+            .map(mapOutboxMessageRow);
+    }
+
+    async getOutboxMessage(id: string): Promise<OutboxMessageRow | null> {
+        return this.outboxMessages.get(id) ?? null;
+    }
+
+    async claimPendingOutboxMessages(limit = 5): Promise<OutboxMessageRow[]> {
+        const now = Date.now();
+        const claimed: OutboxMessageRow[] = [];
+
+        for (const row of [...this.outboxMessages.values()]
+            .filter((item) => {
+                if (item.status !== "pending") return false;
+                const nextRetryAt = item.next_retry_at
+                    ? Date.parse(item.next_retry_at)
+                    : 0;
+                return nextRetryAt <= now;
+            })
+            .sort(
+                (a, b) =>
+                    Date.parse(a.next_retry_at ?? a.created_at) -
+                    Date.parse(b.next_retry_at ?? b.created_at),
+            )
+            .slice(0, limit)) {
+            const next: OutboxMessageRow = {
+                ...row,
+                status: "processing",
+                attempt_count: row.attempt_count + 1,
+                updated_at: new Date().toISOString(),
+            };
+            this.outboxMessages.set(row.id, next);
+            claimed.push(next);
+        }
+
+        return claimed;
+    }
+
+    async markOutboxMessageSent(id: string): Promise<void> {
+        const current = this.outboxMessages.get(id);
+        if (!current) return;
+
+        this.outboxMessages.set(id, {
+            ...current,
+            status: "sent",
+            last_error: null,
+            next_retry_at: null,
+            sent_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        });
+    }
+
+    async rescheduleOutboxMessage(
+        id: string,
+        errorMessage: string,
+        nextRetryAt: string | null,
+        markFailed = false,
+    ): Promise<void> {
+        const current = this.outboxMessages.get(id);
+        if (!current) return;
+
+        this.outboxMessages.set(id, {
+            ...current,
+            status: markFailed ? "failed" : "pending",
+            last_error: errorMessage,
+            next_retry_at: nextRetryAt,
+            updated_at: new Date().toISOString(),
+        });
     }
 
     async close(): Promise<void> {}
@@ -1110,6 +1383,96 @@ class SupabaseDatabase implements DatabaseAdapter {
         assertSupabaseSuccess(
             error,
             "Gagal menghapus metadata group WhatsApp dari Supabase.",
+        );
+    }
+
+    async listKnowledgeItems(): Promise<KnowledgeItem[]> {
+        await this.ready;
+        const { data, error } = await supabaseAdmin!
+            .from("knowledge_items")
+            .select("*")
+            .order("is_active", { ascending: false })
+            .order("updated_at", { ascending: false });
+
+        assertSupabaseSuccess(
+            error,
+            "Gagal mengambil knowledge items dari Supabase.",
+        );
+        return ((data ?? []) as KnowledgeItemRow[]).map(mapKnowledgeItemRow);
+    }
+
+    async createKnowledgeItem(
+        input: CreateKnowledgeItemRequest,
+    ): Promise<KnowledgeItem> {
+        await this.ready;
+        const { data, error } = await supabaseAdmin!
+            .from("knowledge_items")
+            .insert({
+                title: input.title.trim(),
+                question: input.question.trim(),
+                answer: input.answer.trim(),
+                tags: normalizeTags(input.tags),
+                is_active: input.is_active ?? true,
+            })
+            .select("*")
+            .single();
+
+        assertSupabaseSuccess(
+            error,
+            "Gagal menyimpan knowledge item ke Supabase.",
+        );
+        return mapKnowledgeItemRow(data as KnowledgeItemRow);
+    }
+
+    async updateKnowledgeItem(
+        knowledgeId: string,
+        patch: UpdateKnowledgeItemRequest,
+    ): Promise<KnowledgeItem | null> {
+        await this.ready;
+        const { data: existing, error: existingError } = await supabaseAdmin!
+            .from("knowledge_items")
+            .select("*")
+            .eq("id", knowledgeId)
+            .maybeSingle();
+
+        assertSupabaseSuccess(
+            existingError,
+            "Gagal mencari knowledge item di Supabase.",
+        );
+        if (!existing) return null;
+
+        const current = existing as KnowledgeItemRow;
+        const { data, error } = await supabaseAdmin!
+            .from("knowledge_items")
+            .update({
+                title: patch.title?.trim() ?? current.title,
+                question: patch.question?.trim() ?? current.question,
+                answer: patch.answer?.trim() ?? current.answer,
+                tags: patch.tags ? normalizeTags(patch.tags) : current.tags,
+                is_active: patch.is_active ?? current.is_active,
+                updated_at: new Date().toISOString(),
+            })
+            .eq("id", knowledgeId)
+            .select("*")
+            .single();
+
+        assertSupabaseSuccess(
+            error,
+            "Gagal mengupdate knowledge item di Supabase.",
+        );
+        return mapKnowledgeItemRow(data as KnowledgeItemRow);
+    }
+
+    async deleteKnowledgeItem(knowledgeId: string): Promise<void> {
+        await this.ready;
+        const { error } = await supabaseAdmin!
+            .from("knowledge_items")
+            .delete()
+            .eq("id", knowledgeId);
+
+        assertSupabaseSuccess(
+            error,
+            "Gagal menghapus knowledge item dari Supabase.",
         );
     }
 
@@ -1416,6 +1779,15 @@ class SupabaseDatabase implements DatabaseAdapter {
             "Gagal menghapus metadata grup dari Supabase.",
         );
 
+        const { error: outboxDeleteError } = await supabaseAdmin!
+            .from("outbox_messages")
+            .delete()
+            .not("id", "is", null);
+        assertSupabaseSuccess(
+            outboxDeleteError,
+            "Gagal menghapus outbox message dari Supabase.",
+        );
+
         const { error } = await supabaseAdmin!
             .from("contacts")
             .delete()
@@ -1621,6 +1993,158 @@ class SupabaseDatabase implements DatabaseAdapter {
             "Gagal mengambil system logs dari Supabase.",
         );
         return ((data ?? []) as SystemLogRow[]).map(mapSystemLogRow);
+    }
+
+    async createOutboxMessage(input: {
+        contact_id: string;
+        delivery_jid: string;
+        reply_preview: string;
+        payload: Record<string, unknown>;
+        max_attempts?: number;
+        next_retry_at?: string | null;
+    }): Promise<OutboxMessage> {
+        await this.ready;
+        const { data, error } = await supabaseAdmin!
+            .from("outbox_messages")
+            .insert({
+                contact_id: input.contact_id,
+                delivery_jid: input.delivery_jid,
+                reply_preview: input.reply_preview,
+                payload: input.payload,
+                max_attempts: input.max_attempts ?? 3,
+                next_retry_at: input.next_retry_at ?? new Date().toISOString(),
+            })
+            .select("*")
+            .single();
+
+        assertSupabaseSuccess(
+            error,
+            "Gagal membuat outbox message di Supabase.",
+        );
+        return mapOutboxMessageRow(data as OutboxMessageRow);
+    }
+
+    async listOutboxMessages(status?: OutboxStatus): Promise<OutboxMessage[]> {
+        await this.ready;
+
+        let query = supabaseAdmin!
+            .from("outbox_messages")
+            .select("*")
+            .order("updated_at", { ascending: false })
+            .limit(100);
+
+        if (status) {
+            query = query.eq("status", status);
+        }
+
+        const { data, error } = await query;
+        assertSupabaseSuccess(
+            error,
+            "Gagal mengambil outbox messages dari Supabase.",
+        );
+        return ((data ?? []) as OutboxMessageRow[]).map(mapOutboxMessageRow);
+    }
+
+    async getOutboxMessage(id: string): Promise<OutboxMessageRow | null> {
+        await this.ready;
+        const { data, error } = await supabaseAdmin!
+            .from("outbox_messages")
+            .select("*")
+            .eq("id", id)
+            .maybeSingle();
+
+        assertSupabaseSuccess(
+            error,
+            "Gagal mengambil outbox message dari Supabase.",
+        );
+        return (data as OutboxMessageRow | null) ?? null;
+    }
+
+    async claimPendingOutboxMessages(limit = 5): Promise<OutboxMessageRow[]> {
+        await this.ready;
+        const nowIso = new Date().toISOString();
+        const { data, error } = await supabaseAdmin!
+            .from("outbox_messages")
+            .select("*")
+            .eq("status", "pending")
+            .lte("next_retry_at", nowIso)
+            .order("next_retry_at", { ascending: true })
+            .limit(limit);
+
+        assertSupabaseSuccess(
+            error,
+            "Gagal mengambil outbox pending dari Supabase.",
+        );
+
+        const rows = (data ?? []) as OutboxMessageRow[];
+        const claimed: OutboxMessageRow[] = [];
+
+        for (const row of rows) {
+            const { data: updated, error: updateError } = await supabaseAdmin!
+                .from("outbox_messages")
+                .update({
+                    status: "processing",
+                    attempt_count: row.attempt_count + 1,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq("id", row.id)
+                .eq("status", "pending")
+                .select("*")
+                .maybeSingle();
+
+            assertSupabaseSuccess(
+                updateError,
+                "Gagal claim outbox message di Supabase.",
+            );
+
+            if (updated) {
+                claimed.push(updated as OutboxMessageRow);
+            }
+        }
+
+        return claimed;
+    }
+
+    async markOutboxMessageSent(id: string): Promise<void> {
+        await this.ready;
+        const { error } = await supabaseAdmin!
+            .from("outbox_messages")
+            .update({
+                status: "sent",
+                sent_at: new Date().toISOString(),
+                last_error: null,
+                next_retry_at: null,
+                updated_at: new Date().toISOString(),
+            })
+            .eq("id", id);
+
+        assertSupabaseSuccess(
+            error,
+            "Gagal menandai outbox sebagai sent di Supabase.",
+        );
+    }
+
+    async rescheduleOutboxMessage(
+        id: string,
+        errorMessage: string,
+        nextRetryAt: string | null,
+        markFailed = false,
+    ): Promise<void> {
+        await this.ready;
+        const { error } = await supabaseAdmin!
+            .from("outbox_messages")
+            .update({
+                status: markFailed ? "failed" : "pending",
+                last_error: errorMessage,
+                next_retry_at: nextRetryAt,
+                updated_at: new Date().toISOString(),
+            })
+            .eq("id", id);
+
+        assertSupabaseSuccess(
+            error,
+            "Gagal menjadwalkan ulang outbox message di Supabase.",
+        );
     }
 
     async close(): Promise<void> {}
@@ -1894,6 +2418,19 @@ function mapWhatsAppGroupRow(row: WhatsAppGroupRow): WhatsAppGroup {
     };
 }
 
+function mapKnowledgeItemRow(row: KnowledgeItemRow): KnowledgeItem {
+    return {
+        id: row.id,
+        title: row.title,
+        question: row.question,
+        answer: row.answer,
+        tags: row.tags ?? [],
+        is_active: row.is_active,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+    };
+}
+
 function mapMessageRow(row: MessageRow, contactJid: string): Message {
     return {
         id: row.whatsapp_message_id,
@@ -1947,6 +2484,23 @@ function mapSystemLogRow(row: SystemLogRow): SystemLog {
     };
 }
 
+function mapOutboxMessageRow(row: OutboxMessageRow): OutboxMessage {
+    return {
+        id: row.id,
+        contact_id: row.contact_id,
+        delivery_jid: row.delivery_jid,
+        reply_preview: row.reply_preview,
+        status: row.status,
+        attempt_count: row.attempt_count,
+        max_attempts: row.max_attempts,
+        last_error: row.last_error,
+        next_retry_at: row.next_retry_at,
+        sent_at: row.sent_at,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+    };
+}
+
 function mapPersonalMemoryRow(row: PersonalMemoryRow): PersonalMemory {
     return {
         key: row.memory_key as PersonalMemory["key"],
@@ -1960,6 +2514,12 @@ function mapPersonalMemoryRow(row: PersonalMemoryRow): PersonalMemory {
 
 function normalizeContactJid(value: string): string {
     return deriveContactJidFromScopeKey(value.trim());
+}
+
+function normalizeTags(tags?: string[] | null): string[] {
+    if (!tags) return [];
+
+    return [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))];
 }
 
 function assertSupabaseSuccess(

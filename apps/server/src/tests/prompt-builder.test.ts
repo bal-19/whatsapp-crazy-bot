@@ -12,7 +12,8 @@ describe('buildSystemPrompt', () => {
       persona: 'Persona custom admin',
       toneStyle: 'pedas',
       contactName: 'Budi',
-      personalMemorySummary: 'Nama panggilan yang disukai: Bima'
+      personalMemorySummary: 'Nama panggilan yang disukai: Bima',
+      knowledgeSummary: '1. Jam operasional\nPertanyaan: Kapan buka?\nJawaban: Setiap hari pukul 08.00-21.00 WIB'
     });
 
     assert.match(prompt, /Aturan Inti/);
@@ -21,6 +22,8 @@ describe('buildSystemPrompt', () => {
     assert.match(prompt, /Budi/);
     assert.match(prompt, /Bot Gila/);
     assert.match(prompt, /Nama panggilan yang disukai: Bima/);
+    assert.match(prompt, /Knowledge Base Bisnis/);
+    assert.match(prompt, /Jam operasional/);
   });
 
   it('builds a dedicated professional prompt for document generation', () => {

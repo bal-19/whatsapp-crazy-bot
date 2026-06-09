@@ -6,10 +6,13 @@ import type {
     CreateRoleRequest,
     CreateUserRequest,
     CreateContactRequest,
+    CreateKnowledgeItemRequest,
     LoginRequest,
+    OutboxStatus,
     TestPromptRequest,
     UpdateRoleRequest,
     UpdateContactRequest,
+    UpdateKnowledgeItemRequest,
     UpdateUserRequest,
     UpsertWhatsAppGroupRequest,
 } from "@whatsapp-bot/shared";
@@ -41,6 +44,7 @@ import {
     updateUser,
 } from "../services/accessControlService.js";
 import { botConfigService } from "../services/botConfigService.js";
+import { writeAdminAuditLog } from "../services/adminAuditService.js";
 
 export function createApiRouter(): Router {
     const router = Router();
@@ -214,6 +218,86 @@ export function createApiRouter(): Router {
         requirePermission("groups.manage"),
         asyncHandler(async (req, res) => {
             await appDb.deleteGroup(req.params.groupJid);
+            await writeAdminAuditLog(req, "admin_group_deleted", {
+                targetType: "whatsapp_group",
+                targetId: req.params.groupJid,
+            });
+            res.status(204).send();
+        }),
+    );
+
+    router.get(
+        "/knowledge",
+        requirePermission("config.manage"),
+        asyncHandler(async (_req, res) => {
+            res.json({ data: await appDb.listKnowledgeItems() });
+        }),
+    );
+
+    router.post(
+        "/knowledge",
+        requirePermission("config.manage"),
+        asyncHandler(async (req, res) => {
+            const body = createKnowledgeSchema.safeParse(req.body);
+            if (!body.success) {
+                res.status(400).json({
+                    message: "Invalid knowledge payload",
+                    issues: body.error.issues,
+                });
+                return;
+            }
+
+            const created = await appDb.createKnowledgeItem(body.data);
+            await writeAdminAuditLog(req, "admin_knowledge_created", {
+                targetType: "knowledge_item",
+                targetId: created.id,
+                title: created.title,
+            });
+            res.status(201).json(created);
+        }),
+    );
+
+    router.put(
+        "/knowledge/:knowledgeId",
+        requirePermission("config.manage"),
+        asyncHandler(async (req, res) => {
+            const body = updateKnowledgeSchema.safeParse(req.body);
+            if (!body.success) {
+                res.status(400).json({
+                    message: "Invalid knowledge payload",
+                    issues: body.error.issues,
+                });
+                return;
+            }
+
+            const updated = await appDb.updateKnowledgeItem(
+                req.params.knowledgeId,
+                body.data,
+            );
+            if (!updated) {
+                res.status(404).json({ message: "Knowledge item not found" });
+                return;
+            }
+
+            await writeAdminAuditLog(req, "admin_knowledge_updated", {
+                targetType: "knowledge_item",
+                targetId: updated.id,
+                title: updated.title,
+                changes: body.data,
+            });
+            res.json(updated);
+        }),
+    );
+
+    router.delete(
+        "/knowledge/:knowledgeId",
+        requirePermission("config.manage"),
+        asyncHandler(async (req, res) => {
+            await appDb.deleteKnowledgeItem(req.params.knowledgeId);
+            await writeAdminAuditLog(req, "admin_knowledge_deleted", {
+                targetType: "knowledge_item",
+                targetId: req.params.knowledgeId,
+            });
             res.status(204).send();
         }),
     );
@@ -246,6 +330,10 @@ export function createApiRouter(): Router {
         requirePermission("conversations.view"),
         asyncHandler(async (req, res) => {
             await appDb.clearConversation(req.params.contactId);
+            await writeAdminAuditLog(req, "admin_conversation_cleared", {
+                targetType: "conversation",
+                targetId: req.params.contactId,
+            });
             res.status(204).send();
         }),
     );
@@ -270,9 +358,16 @@ export function createApiRouter(): Router {
                 });
                 return;
             }
+            const previousConfig = await appDb.getConfig();
             const config = await appDb.updateConfig(body.data);
             botConfigService.clearCache();
             await botConfigService.refreshConfig();
+            await writeAdminAuditLog(req, "admin_config_updated", {
+                targetType: "bot_settings",
+                targetId: "default",
+                changes: body.data,
+                previous: previousConfig,
+            });
             res.json(config);
         }),
     );
@@ -327,15 +422,31 @@ export function createApiRouter(): Router {
         }),
     );
 
+    router.get(
+        "/outbox",
+        requirePermission("logs.view", "dashboard.view"),
+        asyncHandler(async (req, res) => {
+            const status =
+                typeof req.query.status === "string"
+                    ? (req.query.status as OutboxStatus)
+                    : undefined;
+            res.json({ data: await appDb.listOutboxMessages(status) });
+        }),
+    );
+
     router.post(
         "/maintenance/purge-operational-data",
         requirePermission("maintenance.manage"),
-        asyncHandler(async (_req, res) => {
+        asyncHandler(async (req, res) => {
             const summary = await appDb.purgeOperationalData();
             memory.clearAll();
             const analytics = await appDb.getAnalyticsSummary();
             emitAnalyticsUpdate(analytics);
             await appDb.addLog("warn", "operational_data_purged", summary);
+            await writeAdminAuditLog(req, "admin_operational_data_purged", {
+                targetType: "operational_data",
+                summary,
+            });
 
             res.status(202).json({
                 ...summary,
@@ -345,6 +456,7 @@ export function createApiRouter(): Router {
                     "bot_settings",
                     "system_logs",
                     "whatsapp_auth_state",
+                    "knowledge_items",
                 ],
             });
         }),
@@ -353,8 +465,11 @@ export function createApiRouter(): Router {
     router.post(
         "/bot/restart",
         requirePermission("bot.manage"),
-        asyncHandler(async (_req, res) => {
+        asyncHandler(async (req, res) => {
             await botManager.restart();
+            await writeAdminAuditLog(req, "admin_bot_restart_requested", {
+                targetType: "bot_runtime",
+            });
             res.status(202).json({ status: botManager.getStatus() });
         }),
     );
@@ -362,8 +477,11 @@ export function createApiRouter(): Router {
     router.post(
         "/bot/reset-auth",
         requirePermission("bot.manage"),
-        asyncHandler(async (_req, res) => {
+        asyncHandler(async (req, res) => {
             await botManager.resetAuth();
+            await writeAdminAuditLog(req, "admin_bot_reset_auth_requested", {
+                targetType: "whatsapp_auth_state",
+            });
             res.status(202).json({
                 status: botManager.getStatus(),
                 uptime_seconds: botManager.getUptimeSeconds(),
@@ -512,6 +630,26 @@ const upsertGroupSchema = z.object({
         }),
     display_name: z.string().max(120).nullable().optional(),
 }) satisfies z.ZodType<UpsertWhatsAppGroupRequest>;
+
+const createKnowledgeSchema = z.object({
+    title: z.string().min(3).max(160),
+    question: z.string().min(3).max(2000),
+    answer: z.string().min(3).max(4000),
+    tags: z.array(z.string().min(1).max(60)).max(20).optional(),
+    is_active: z.boolean().optional(),
+}) satisfies z.ZodType<CreateKnowledgeItemRequest>;
+
+const updateKnowledgeSchema = z
+    .object({
+        title: z.string().min(3).max(160).optional(),
+        question: z.string().min(3).max(2000).optional(),
+        answer: z.string().min(3).max(4000).optional(),
+        tags: z.array(z.string().min(1).max(60)).max(20).optional(),
+        is_active: z.boolean().optional(),
+    })
+    .refine((value) => Object.keys(value).length > 0, {
+        message: "At least one knowledge field is required",
+    }) satisfies z.ZodType<UpdateKnowledgeItemRequest>;
 
 const permissionSchema = z.custom<
     NonNullable<CreateRoleRequest["permissions"]>[number]

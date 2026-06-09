@@ -6,6 +6,7 @@ interface PromptContext {
     toneStyle: BotConfig["tone_style"];
     contactName?: string | null;
     personalMemorySummary?: string | null;
+    knowledgeSummary?: string | null;
 }
 
 interface DocumentPromptContext {
@@ -61,7 +62,21 @@ ${ctx.personalMemorySummary}
 `.trim()
         : null;
 
-    return [coreRules, personaSection, contextSection, personalMemorySection]
+    const knowledgeSection = ctx.knowledgeSummary
+        ? `
+## Knowledge Base Bisnis
+Gunakan informasi berikut sebagai fakta prioritas bila relevan dengan pertanyaan user.
+${ctx.knowledgeSummary}
+`.trim()
+        : null;
+
+    return [
+        coreRules,
+        personaSection,
+        contextSection,
+        knowledgeSection,
+        personalMemorySection,
+    ]
         .filter(Boolean)
         .join("\n\n");
 }

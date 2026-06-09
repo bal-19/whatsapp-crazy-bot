@@ -139,6 +139,45 @@ describe('appDb group metadata', () => {
 });
 
 describe('appDb personal memories', () => {
+  it('stores and claims outbox messages for retry delivery', async () => {
+    const queued = await appDb.createOutboxMessage({
+      contact_id: `outbox-scope-${Date.now()}@s.whatsapp.net`,
+      delivery_jid: `62812${Date.now()}@s.whatsapp.net`,
+      reply_preview: 'halo dari outbox',
+      payload: { reply: { type: 'text', text: 'halo dari outbox' } }
+    });
+
+    const claimed = await appDb.claimPendingOutboxMessages(5);
+    const match = claimed.find((item) => item.id === queued.id);
+
+    assert.ok(match);
+    assert.equal(match?.status, 'processing');
+    assert.equal(match?.attempt_count, 1);
+
+    await appDb.rescheduleOutboxMessage(queued.id, 'temporary failure', null, true);
+    const failed = await appDb.listOutboxMessages('failed');
+    assert.equal(failed.some((item) => item.id === queued.id), true);
+  });
+
+  it('creates and updates knowledge items', async () => {
+    const created = await appDb.createKnowledgeItem({
+      title: 'FAQ Harga',
+      question: 'Berapa harga paket basic?',
+      answer: 'Paket basic mulai dari 99 ribu.',
+      tags: ['harga', 'paket'],
+      is_active: true
+    });
+
+    const updated = await appDb.updateKnowledgeItem(created.id, {
+      answer: 'Paket basic mulai dari 109 ribu.',
+      is_active: false
+    });
+
+    assert.ok(updated);
+    assert.equal(updated?.is_active, false);
+    assert.equal(updated?.answer, 'Paket basic mulai dari 109 ribu.');
+  });
+
   it('exposes document metadata and includes it in analytics', async () => {
     const contactId = `document-analytics-${Date.now()}@s.whatsapp.net`;
     const before = await appDb.getAnalyticsSummary();

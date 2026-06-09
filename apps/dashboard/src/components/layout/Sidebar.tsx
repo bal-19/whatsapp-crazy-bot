@@ -1,4 +1,4 @@
-import { BarChart3, ContactRound, LayoutDashboard, MessageSquare, Settings2, ShieldCheck, Terminal, Users, UsersRound, ChevronDown, MoreHorizontal, X } from 'lucide-react';
+import { BarChart3, BookOpen, ContactRound, LayoutDashboard, MessageSquare, MoreHorizontal, Send, Settings2, ShieldCheck, Terminal, Users, UsersRound, ChevronDown, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { DashboardPermission } from '@whatsapp-bot/shared';
 import { NavLink } from 'react-router-dom';
@@ -30,8 +30,10 @@ const items: MenuItem[] = [
         ]
     },
     { to: '/config', label: 'Konfigurasi', icon: Settings2, permission: 'config.manage' },
+    { to: '/knowledge', label: 'Knowledge Base', icon: BookOpen, permission: 'config.manage' },
     { to: '/analytics', label: 'Analytics', icon: BarChart3, permission: 'analytics.view' },
     { to: '/logs', label: 'Log Sistem', icon: Terminal, permission: 'logs.view' },
+    { to: '/outbox', label: 'Outbox', icon: Send, permission: 'logs.view' },
     {
         label: 'Access Control',
         icon: ShieldCheck,
